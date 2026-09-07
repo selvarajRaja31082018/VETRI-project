@@ -122,7 +122,7 @@ export function RequestActionPanel({
             <Button
               isLoading={isSubmitting}
               disabled={!remarks}
-              onClick={() => run(() => requestService.queue(request.id, `Appointment scheduled for ${remarks}`), 'Appointment scheduled')}
+              onClick={() => run(() => requestService.scheduleAppointment(request.id, remarks), 'Appointment scheduled')}
             >
               Confirm Schedule Appointment
             </Button>

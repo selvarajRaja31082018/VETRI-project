@@ -39,7 +39,12 @@ const assign = asyncHandler(async (req, res) => {
 
 const queue = asyncHandler(async (req, res) => {
   const result = await service.queue(req.params.id, req.body, ctx(req));
-  success(res, result, 'Visitor moved to waiting room');
+  success(res, result, 'Visitor kept waiting');
+});
+
+const scheduleAppointment = asyncHandler(async (req, res) => {
+  const result = await service.scheduleAppointment(req.params.id, req.body, ctx(req));
+  success(res, result, 'Appointment scheduled');
 });
 
 const resolve = asyncHandler(async (req, res) => {
@@ -80,6 +85,7 @@ module.exports = {
   reject,
   assign,
   queue,
+  scheduleAppointment,
   resolve,
   cancel,
   setPriority,

@@ -38,6 +38,12 @@ router.put(
   controller.queue,
 );
 router.put(
+  '/:id/schedule',
+  requirePermission(PERMISSIONS.REQUEST_APPROVE),
+  validate(validators.scheduleAppointment),
+  controller.scheduleAppointment,
+);
+router.put(
   '/:id/resolve',
   requirePermission(PERMISSIONS.REQUEST_RESOLVE),
   validate(validators.resolve),

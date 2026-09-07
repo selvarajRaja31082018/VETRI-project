@@ -54,6 +54,13 @@ async function queue(id: number, remarks?: string) {
   return data.data;
 }
 
+async function scheduleAppointment(id: number, appointmentDate: string) {
+  const { data } = await api.put<ApiSuccess<VisitorRequest>>(`/visitor-requests/${id}/schedule`, {
+    appointmentDate,
+  });
+  return data.data;
+}
+
 async function resolve(id: number, resolution: string) {
   const { data } = await api.put<ApiSuccess<VisitorRequest>>(`/visitor-requests/${id}/resolve`, { resolution });
   return data.data;
@@ -95,6 +102,7 @@ export const requestService = {
   reject,
   assign,
   queue,
+  scheduleAppointment,
   resolve,
   cancel,
   setPriority,

@@ -163,13 +163,83 @@ async function assign(id, { representativeId, remarks }, context) {
 }
 
 /** PA "Queue" / "Keep waiting" action: move an approved visitor to the waiting room. */
+/**
+ * PA "Keep waiting" action. If the request has already been approved, this
+ * moves it into the waiting room; otherwise (e.g. still PENDING_APPROVAL) it
+ * is a deliberate no-decision note - the request stays visible in the PA
+ * queue for a later decision, matching the prototype's documented behaviour.
+ */
 async function queue(id, { remarks }, context) {
-  await transition(
-    id,
-    { to: STATUS.WAITING, remarks: remarks || 'Moved to waiting room' },
-    context,
-    'REQUEST_QUEUED',
-  );
+  await db.transaction(async (tx) => {
+    const current = await repo.findByIdForUpdate(tx, id);
+    if (!current) throw ApiError.notFound('Visitor request not found');
+
+    const canMoveToWaiting = (STATUS_TRANSITIONS[current.status] || []).includes(STATUS.WAITING);
+    const nextStatus = canMoveToWaiting ? STATUS.WAITING : current.status;
+
+    if (canMoveToWaiting) {
+      await repo.update(tx, id, { status: nextStatus });
+    }
+    await repo.addStatusHistory(tx, {
+      requestId: id,
+      oldStatus: current.status,
+      newStatus: nextStatus,
+      changedBy: context.userId,
+      remarks: remarks || 'Kept waiting for a later decision',
+    });
+    await writeAudit(tx, context, {
+      action: 'REQUEST_QUEUED',
+      entityType: 'visitor_request',
+      entityId: id,
+      oldValue: { status: current.status },
+      newValue: { status: nextStatus },
+    });
+  });
+  return getById(id, { roleCode: ROLES.ADMIN });
+}
+
+/**
+ * PA "Schedule Appointment" action. Records/updates an appointment date
+ * without forcing a status transition - a request can carry an appointment
+ * while still pending, approved, or assigned.
+ */
+async function scheduleAppointment(id, { appointmentDate }, context) {
+  await db.transaction(async (tx) => {
+    const current = await repo.findByIdForUpdate(tx, id);
+    if (!current) throw ApiError.notFound('Visitor request not found');
+
+    const existing = await tx.queryOne(
+      "SELECT id FROM appointments WHERE visitor_request_id = ? AND status = 'SCHEDULED' ORDER BY id DESC LIMIT 1",
+      [id],
+    );
+    if (existing) {
+      await tx.query('UPDATE appointments SET appointment_date = ?, representative_id = ? WHERE id = ?', [
+        appointmentDate,
+        current.representative_id,
+        existing.id,
+      ]);
+    } else {
+      await tx.query(
+        `INSERT INTO appointments (visitor_request_id, representative_id, appointment_date, status)
+         VALUES (?, ?, ?, 'SCHEDULED')`,
+        [id, current.representative_id, appointmentDate],
+      );
+    }
+
+    await repo.addStatusHistory(tx, {
+      requestId: id,
+      oldStatus: current.status,
+      newStatus: current.status,
+      changedBy: context.userId,
+      remarks: `Appointment scheduled for ${appointmentDate}`,
+    });
+    await writeAudit(tx, context, {
+      action: 'APPOINTMENT_SCHEDULED',
+      entityType: 'visitor_request',
+      entityId: id,
+      newValue: { appointmentDate },
+    });
+  });
   return getById(id, { roleCode: ROLES.ADMIN });
 }
 
@@ -366,6 +436,7 @@ module.exports = {
   reject,
   assign,
   queue,
+  scheduleAppointment,
   resolve,
   cancel,
   setPriority,

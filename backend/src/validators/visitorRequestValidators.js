@@ -42,6 +42,13 @@ const queue = {
   body: z.object({ remarks: z.string().trim().max(2000).optional() }),
 };
 
+const scheduleAppointment = {
+  params: idParam,
+  body: z.object({
+    appointmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+  }),
+};
+
 const resolve = {
   params: idParam,
   body: z.object({ resolution: z.string().trim().min(1, 'Resolution is required').max(4000) }),
@@ -74,6 +81,7 @@ module.exports = {
   reject,
   assign,
   queue,
+  scheduleAppointment,
   resolve,
   cancel,
   setPriority,
