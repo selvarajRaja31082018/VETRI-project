@@ -1,0 +1,90 @@
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-hero {
+  background: radial-gradient(circle at top left, #971631, var(--color-primary) 60%, #3f0715);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1.75rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.auth-hero-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.auth-hero h1 {
+  font-size: 1.8rem;
+  letter-spacing: 0.03em;
+}
+
+.auth-hero p {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  max-width: 360px;
+}
+
+.auth-hero-tag {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background: var(--color-bg);
+  flex: 1;
+}
+
+@media (min-width: 900px) {
+  .auth-shell {
+    flex-direction: row;
+  }
+
+  .auth-hero {
+    flex: 1;
+    padding: 3rem;
+    justify-content: center;
+  }
+
+  .auth-hero-logo {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 1rem;
+  }
+
+  .auth-hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .auth-hero p {
+    font-size: 1rem;
+  }
+
+  .auth-hero-tag {
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+  }
+
+  .auth-panel {
+    flex: 1;
+  }
+}
