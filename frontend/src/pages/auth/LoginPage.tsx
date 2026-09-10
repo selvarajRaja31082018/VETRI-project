@@ -6,6 +6,8 @@ import { Button } from '../../components/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { getErrorMessage, getFieldErrors } from '../../utils/errors';
 import { ROLE_HOME } from '../../utils/constants';
+import { DEMO_ACCOUNTS, type DemoAccount } from './demoAccounts';
+import './LoginPage.css';
 
 interface LocationState {
   from?: string;
@@ -18,9 +20,18 @@ export function LoginPage() {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  function selectDemoAccount(account: DemoAccount) {
+    setSelectedRole(account.roleCode);
+    setIdentifier(account.identifier);
+    setPassword(account.password);
+    setFormError(null);
+    setFieldErrors({});
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -50,10 +61,35 @@ export function LoginPage() {
 
   return (
     <AuthLayout>
-      <form className="login-card" onSubmit={handleSubmit} noValidate style={{ width: '100%', maxWidth: 380 }}>
+      <form className="login-card" onSubmit={handleSubmit} noValidate style={{ width: '100%', maxWidth: 420 }}>
         <h2 style={{ marginBottom: '0.25rem' }}>Sign in</h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
           Use your VETRI account credentials to continue.
+        </p>
+
+        <div className="demo-role-grid">
+          {DEMO_ACCOUNTS.map((account) => (
+            <button
+              key={account.roleCode}
+              type="button"
+              className={`demo-role-card ${selectedRole === account.roleCode ? 'is-selected' : ''}`}
+              onClick={() => selectDemoAccount(account)}
+            >
+              <span className="demo-role-badge">{account.roleCode}</span>
+              <span className="demo-role-text">
+                <strong>{account.label}</strong>
+                <span>{account.caption}</span>
+              </span>
+              {selectedRole === account.roleCode && (
+                <span className="demo-role-check" aria-hidden="true">
+                  ✓
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <p className="field-hint" style={{ marginBottom: '1.25rem' }}>
+          Select a workspace to fill in a demo account, or enter your own credentials below.
         </p>
 
         {formError && (
@@ -77,7 +113,10 @@ export function LoginPage() {
           required
           autoComplete="username"
           value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          onChange={(e) => {
+            setIdentifier(e.target.value);
+            setSelectedRole(null);
+          }}
           error={fieldErrors.identifier}
           placeholder="you@example.com"
         />
@@ -87,7 +126,10 @@ export function LoginPage() {
           required
           autoComplete="current-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setSelectedRole(null);
+          }}
           error={fieldErrors.password}
           placeholder="••••••••"
         />
