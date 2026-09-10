@@ -16,29 +16,13 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
 const { ROLES, ROLE_PERMISSIONS, PERMISSIONS, VISITOR_TYPES } = require('../src/utils/constants');
+const { DEFAULT_DEPARTMENTS, DEFAULT_REASONS } = require('../src/utils/masterDataDefaults');
 
 const ROLE_NAMES = {
   [ROLES.GATE]: 'Gate Operator',
   [ROLES.OFFICE]: 'Office Staff / PA',
   [ROLES.REPRESENTATIVE]: 'Elected Representative',
   [ROLES.ADMIN]: 'Administrator',
-};
-
-const DEFAULT_DEPARTMENTS = [
-  'Greater Chennai Corporation',
-  'Revenue Administration',
-  'Social Welfare',
-  'School Education',
-  'Health & Family Welfare',
-  'Public Works Department',
-];
-
-const DEFAULT_REASONS = {
-  'General Public': ['Grievance submission', 'Ration follow-up', 'Welfare assistance', 'Civic issue', 'Public meeting request'],
-  'Entity Employee': ['Employment issue', 'Transfer request'],
-  'Party Cadre': ['Party programme', 'Local coordination'],
-  'Govt Staff': ['Departmental coordination'],
-  Personal: ['Personal meeting request'],
 };
 
 async function main() {

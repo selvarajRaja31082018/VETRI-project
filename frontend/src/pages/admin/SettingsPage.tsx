@@ -5,6 +5,7 @@ import { Select } from '../../components/Select';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/StatusBadge';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useDepartments, useVisitReasons } from '../../hooks/useMasterData';
 import { useToast } from '../../hooks/useToast';
 import { masterDataService } from '../../services/masterDataService';
@@ -20,9 +21,13 @@ export function SettingsPage() {
   const [newDepartment, setNewDepartment] = useState('');
   const [isSavingReason, setIsSavingReason] = useState(false);
   const [isSavingDepartment, setIsSavingDepartment] = useState(false);
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  const reasons = useVisitReasons(visitorType);
-  const departments = useDepartments();
+  // Admin configuration must see inactive entries too, otherwise toggling
+  // something off makes it vanish from this list with no way back.
+  const reasons = useVisitReasons(visitorType, { includeInactive: true });
+  const departments = useDepartments({ includeInactive: true });
 
   async function handleAddReason() {
     if (!newReason.trim()) return;
@@ -72,11 +77,31 @@ export function SettingsPage() {
     }
   }
 
+  async function handleReset() {
+    setIsResetting(true);
+    try {
+      await masterDataService.resetToDefaults();
+      showToast('Master data reset to defaults');
+      reasons.reload();
+      departments.reload();
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setIsResetting(false);
+      setIsResetOpen(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Admin configuration"
         description="Manage reasons for visit and referral departments. Additions appear immediately across the Gate, PA and Representative workspaces."
+        action={
+          <Button variant="secondary" onClick={() => setIsResetOpen(true)}>
+            Reset to defaults
+          </Button>
+        }
       />
 
       <div className="two-col">
@@ -153,6 +178,17 @@ export function SettingsPage() {
           </div>
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={isResetOpen}
+        title="Reset master data to defaults"
+        message="Every reason and department outside the default set will be deactivated (not deleted), and all default reasons and departments will be restored and re-activated. Visitor and request records are never affected."
+        confirmLabel="Reset to defaults"
+        variant="danger"
+        isLoading={isResetting}
+        onConfirm={handleReset}
+        onCancel={() => setIsResetOpen(false)}
+      />
     </div>
   );
 }

@@ -4,13 +4,14 @@ const db = require('../config/db');
 const ApiError = require('../utils/ApiError');
 const repo = require('../repositories/masterDataRepository');
 const { writeAudit } = require('../utils/audit');
+const { DEFAULT_DEPARTMENTS, DEFAULT_REASONS } = require('../utils/masterDataDefaults');
 
 async function listRepresentatives() {
   return repo.listRepresentatives();
 }
 
-async function listDepartments() {
-  return repo.listDepartments();
+async function listDepartments({ includeInactive } = {}) {
+  return repo.listDepartments({ activeOnly: !includeInactive });
 }
 
 async function addDepartment(name, context) {
@@ -42,8 +43,8 @@ async function setDepartmentActive(id, isActive, context) {
   });
 }
 
-async function listReasons(visitorType) {
-  return repo.listReasons({ visitorType });
+async function listReasons(visitorType, { includeInactive } = {}) {
+  return repo.listReasons({ visitorType, activeOnly: !includeInactive });
 }
 
 async function addReason({ visitorType, reason }, context) {
@@ -75,6 +76,61 @@ async function setReasonActive(id, isActive, context) {
   });
 }
 
+/**
+ * Restore the reason-for-visit and department master lists to their default
+ * set. This never deletes rows (departments/reasons may already be
+ * referenced by real visitor requests) - anything outside the default set is
+ * deactivated instead, and every default entry is ensured to exist and be
+ * active. Matches the prototype's "Reset demo data" for master lists without
+ * risking real visitor/request history.
+ */
+async function resetToDefaults(context) {
+  const allDepartments = await repo.listDepartments({ activeOnly: false });
+  const allReasons = await repo.listReasons({ activeOnly: false });
+
+  await db.transaction(async (tx) => {
+    for (const dept of allDepartments) {
+      const isDefault = DEFAULT_DEPARTMENTS.includes(dept.name);
+      if (!isDefault && dept.is_active) {
+        await repo.setDepartmentActive(tx, dept.id, false);
+      }
+    }
+    const existingDeptNames = new Set(allDepartments.map((d) => d.name));
+    for (const name of DEFAULT_DEPARTMENTS) {
+      if (existingDeptNames.has(name)) {
+        const existing = allDepartments.find((d) => d.name === name);
+        if (!existing.is_active) await repo.setDepartmentActive(tx, existing.id, true);
+      } else {
+        await repo.createDepartment(tx, name);
+      }
+    }
+
+    const isDefaultReason = (r) => (DEFAULT_REASONS[r.visitor_type] || []).includes(r.reason);
+    for (const reason of allReasons) {
+      if (!isDefaultReason(reason) && reason.is_active) {
+        await repo.setReasonActive(tx, reason.id, false);
+      }
+    }
+    for (const [visitorType, reasons] of Object.entries(DEFAULT_REASONS)) {
+      for (const reasonText of reasons) {
+        const existing = allReasons.find((r) => r.visitor_type === visitorType && r.reason === reasonText);
+        if (existing) {
+          if (!existing.is_active) await repo.setReasonActive(tx, existing.id, true);
+        } else {
+          await repo.createReason(tx, { visitorType, reason: reasonText });
+        }
+      }
+    }
+
+    await writeAudit(tx, context, {
+      action: 'MASTER_DATA_RESET',
+      entityType: 'master_data',
+    });
+  });
+
+  return { departments: await repo.listDepartments({ activeOnly: false }), reasons: await repo.listReasons({ activeOnly: false }) };
+}
+
 async function listSettings() {
   return repo.listSettings();
 }
@@ -100,6 +156,7 @@ module.exports = {
   listReasons,
   addReason,
   setReasonActive,
+  resetToDefaults,
   listSettings,
   updateSetting,
 };

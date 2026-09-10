@@ -40,6 +40,8 @@ router.put(
   controller.setReasonActive,
 );
 
+router.post('/reset-defaults', requirePermission(PERMISSIONS.MASTER_DATA_MANAGE), controller.resetToDefaults);
+
 router.get('/settings', requirePermission(PERMISSIONS.SETTINGS_MANAGE), controller.listSettings);
 router.put(
   '/settings/:key',

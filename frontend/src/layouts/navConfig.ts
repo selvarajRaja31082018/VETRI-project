@@ -35,6 +35,6 @@ export const NAV_BY_ROLE: Record<RoleCode, NavItem[]> = {
     { to: '/admin/reports', label: 'Reports' },
     { to: '/admin/analytics', label: 'Analytics' },
     { to: '/admin/audit-logs', label: 'Audit logs' },
-    { to: '/admin/settings', label: 'Settings' },
+    { to: '/admin/settings', label: 'Configuration' },
   ],
 };
