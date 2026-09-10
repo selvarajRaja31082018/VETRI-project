@@ -25,6 +25,11 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
   const [preview, setPreview] = useState<string | null>(value || null);
   const [error, setError] = useState<string | null>(null);
 
+  // The <video> element stays mounted at all times (visibility is toggled via
+  // CSS/`hidden`) so the ref is always attached before getUserMedia resolves.
+  // Conditionally rendering it only in 'streaming' mode meant the stream was
+  // attached to a ref that didn't exist yet, leaving the element blank and
+  // videoWidth/videoHeight stuck at 0 on capture.
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -32,6 +37,7 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
   useEffect(() => stopStream, [stopStream]);
@@ -52,10 +58,18 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error('Video element is not ready');
       }
+
+      video.srcObject = stream;
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error('Failed to load camera stream'));
+      });
+      await video.play();
       setMode('streaming');
     } catch (err) {
       setMode('error');
@@ -73,6 +87,11 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
     if (!video || !canvas) return;
 
     const side = Math.min(video.videoWidth, video.videoHeight);
+    if (!side) {
+      setError('Camera is still starting up. Wait a moment and try again.');
+      return;
+    }
+
     canvas.width = side;
     canvas.height = side;
     const ctx = canvas.getContext('2d');
@@ -110,13 +129,20 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
     startCamera();
   }
 
+  const showVideo = mode === 'streaming';
+  const showPreview = (mode === 'captured' || mode === 'uploading') && !!preview;
+
   return (
     <div className={`camera-capture camera-capture-${size}`}>
       <div className="camera-capture-frame">
-        {mode === 'streaming' && <video ref={videoRef} muted playsInline className="camera-capture-video" />}
-        {(mode === 'captured' || mode === 'uploading') && preview && (
-          <img src={preview} alt="Captured identity" className="camera-capture-preview" />
-        )}
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          className="camera-capture-video"
+          hidden={!showVideo}
+        />
+        {showPreview && <img src={preview} alt="Captured identity" className="camera-capture-preview" />}
         {mode === 'uploading' && <div className="camera-capture-overlay">Uploading...</div>}
         {(mode === 'idle' || mode === 'starting') && (
           <div className="camera-capture-placeholder" aria-hidden="true">
