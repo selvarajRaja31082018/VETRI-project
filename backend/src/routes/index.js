@@ -14,6 +14,7 @@ const restrictionRoutes = require('./restrictionRoutes');
 const reportRoutes = require('./reportRoutes');
 const auditRoutes = require('./auditRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const uploadRoutes = require('./uploadRoutes');
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use('/restricted-entries', authenticate, restrictionRoutes);
 router.use('/reports', authenticate, reportRoutes);
 router.use('/audit-logs', authenticate, auditRoutes);
 router.use('/notifications', authenticate, notificationRoutes);
+router.use('/uploads', authenticate, uploadRoutes);
 
 module.exports = router;

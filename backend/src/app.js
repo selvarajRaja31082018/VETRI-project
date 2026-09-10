@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -23,9 +24,24 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+// 8mb accommodates a base64-encoded photo capture (images are capped at 5MB
+// raw, which runs ~33% larger once base64-encoded) alongside normal JSON bodies.
+app.use(express.json({ limit: '8mb' }));
+app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 app.use(morgan(env.isProduction ? 'combined' : 'dev'));
+
+// Visitor photos are served to a separate frontend origin, so they need a
+// relaxed Cross-Origin-Resource-Policy (helmet's default 'same-origin' would
+// otherwise let the backend save them but block the browser from rendering
+// them as <img> on the deployed frontend's domain).
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.resolve(__dirname, '../uploads')),
+);
 
 app.get('/health', async (req, res) => {
   try {
