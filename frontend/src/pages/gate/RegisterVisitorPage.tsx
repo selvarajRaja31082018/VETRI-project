@@ -6,6 +6,7 @@ import { Input } from '../../components/Input';
 import { Select } from '../../components/Select';
 import { Textarea } from '../../components/Textarea';
 import { Button } from '../../components/Button';
+import { CameraCapture } from '../../components/CameraCapture';
 import { useVisitReasons } from '../../hooks/useMasterData';
 import { visitorService } from '../../services/visitorService';
 import { useToast } from '../../hooks/useToast';
@@ -29,6 +30,7 @@ export function RegisterVisitorPage() {
   const [purpose, setPurpose] = useState('');
   const [personToMeet, setPersonToMeet] = useState('');
   const [priority, setPriority] = useState<Priority>('NORMAL');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [groupSize, setGroupSize] = useState(1);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [consent, setConsent] = useState(false);
@@ -78,6 +80,7 @@ export function RegisterVisitorPage() {
         district: district || undefined,
         constituency: constituency || undefined,
         visitorType,
+        photoUrl: photoUrl || undefined,
         purpose,
         reason: reason || undefined,
         personToMeet: personToMeet || undefined,
@@ -103,6 +106,15 @@ export function RegisterVisitorPage() {
       />
 
       <form onSubmit={handleSubmit} noValidate>
+        <Card title="Identity verification" className="section-spacing">
+          <CameraCapture
+            value={photoUrl}
+            onCapture={setPhotoUrl}
+            onClear={() => setPhotoUrl(null)}
+            label="Capture the visitor's identity with consent, before entering their details."
+          />
+        </Card>
+
         <Card title="Visitor details" className="section-spacing">
           {formError && (
             <div role="alert" className="form-alert-error">
@@ -195,6 +207,12 @@ export function RegisterVisitorPage() {
             {members.map((member, index) => (
               <div key={index} className="group-member-block">
                 <div className="group-member-index">{index + 2}</div>
+                <CameraCapture
+                  size="small"
+                  value={member.photoUrl}
+                  onCapture={(url) => updateMember(index, 'photoUrl', url)}
+                  onClear={() => updateMember(index, 'photoUrl', '')}
+                />
                 <div className="form-grid-2" style={{ flex: 1 }}>
                   <Input
                     label="Full name"

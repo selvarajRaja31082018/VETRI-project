@@ -18,6 +18,7 @@ export interface RegisterVisitorPayload {
   visitorType?: VisitorType;
   identityType?: string;
   identityReference?: string;
+  photoUrl?: string;
   purpose: string;
   reason?: string;
   grievanceCategory?: string;

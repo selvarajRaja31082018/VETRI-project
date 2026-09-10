@@ -1,0 +1,76 @@
+.camera-capture {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.camera-capture-frame {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-primary-tint);
+  border: 3px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-capture-large .camera-capture-frame {
+  width: 220px;
+  height: 220px;
+}
+
+.camera-capture-small .camera-capture-frame {
+  width: 96px;
+  height: 96px;
+  border-width: 2px;
+}
+
+.camera-capture-video,
+.camera-capture-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.camera-capture-placeholder {
+  font-size: 2.5rem;
+  color: var(--color-primary);
+  opacity: 0.6;
+}
+
+.camera-capture-small .camera-capture-placeholder {
+  font-size: 1.5rem;
+}
+
+.camera-capture-placeholder-error {
+  opacity: 1;
+}
+
+.camera-capture-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.camera-capture-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 220px;
+}
+
+.camera-capture-actions {
+  display: flex;
+  gap: 0.5rem;
+}
