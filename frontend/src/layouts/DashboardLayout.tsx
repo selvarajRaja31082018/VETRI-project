@@ -5,14 +5,24 @@ import { useAuth } from '../hooks/useAuth';
 import { NAV_BY_ROLE } from './navConfig';
 import { initials } from '../utils/formatters';
 import { ROLE_LABELS } from '../utils/constants';
+import { NotificationBell } from '../components/NotificationBell';
+import { useAsync } from '../hooks/useAsync';
+import { settingsService } from '../services/settingsService';
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const settings = useAsync(() => settingsService.list(), []);
 
   if (!user) return null;
   const navItems = NAV_BY_ROLE[user.roleCode];
+
+  const officeName = settings.data?.find((s) => s.setting_key === 'office_name')?.setting_value;
+  const officeHours = settings.data?.find((s) => s.setting_key === 'office_hours')?.setting_value;
+  const topbarText = officeName
+    ? [officeName, officeHours].filter(Boolean).join(' · ')
+    : 'VETRI workspace';
 
   async function handleLogout() {
     await logout();
@@ -69,8 +79,10 @@ export function DashboardLayout() {
           </button>
           <div className="app-topbar-status">
             <span className="status-dot" aria-hidden="true" />
-            Office is open · Constituency Service Centre
+            {topbarText}
           </div>
+          <div className="app-topbar-spacer" />
+          <NotificationBell />
         </header>
         <main className="app-content">
           <Outlet />

@@ -42,7 +42,9 @@ router.put(
 
 router.post('/reset-defaults', requirePermission(PERMISSIONS.MASTER_DATA_MANAGE), controller.resetToDefaults);
 
-router.get('/settings', requirePermission(PERMISSIONS.SETTINGS_MANAGE), controller.listSettings);
+// Reading settings (e.g. office name/hours shown in every role's topbar) is
+// low-risk operational info - only writing them is admin-gated below.
+router.get('/settings', controller.listSettings);
 router.put(
   '/settings/:key',
   requirePermission(PERMISSIONS.SETTINGS_MANAGE),

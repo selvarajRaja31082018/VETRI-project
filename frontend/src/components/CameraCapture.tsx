@@ -42,12 +42,18 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
 
   useEffect(() => stopStream, [stopStream]);
 
-  useEffect(() => {
+  // Sync internal state when the `value` prop changes from outside (e.g. a
+  // parent resets the field). Adjusted directly during render rather than in
+  // an effect, per React's guidance for state derived from props - this
+  // avoids an extra render pass and the "setState in effect" lint warning.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
     if (value) {
       setPreview(value);
       setMode('captured');
     }
-  }, [value]);
+  }
 
   async function startCamera() {
     setError(null);

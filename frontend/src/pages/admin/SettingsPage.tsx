@@ -8,13 +8,42 @@ import { Badge } from '../../components/StatusBadge';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useDepartments, useVisitReasons } from '../../hooks/useMasterData';
 import { useToast } from '../../hooks/useToast';
+import { useAsync } from '../../hooks/useAsync';
 import { masterDataService } from '../../services/masterDataService';
+import { settingsService } from '../../services/settingsService';
 import { getErrorMessage } from '../../utils/errors';
 import { VISITOR_TYPES } from '../../utils/constants';
 import type { VisitorType } from '../../types';
 
 export function SettingsPage() {
   const { showToast } = useToast();
+
+  const settings = useAsync(() => settingsService.list(), []);
+  const [officeName, setOfficeName] = useState('');
+  const [officeHours, setOfficeHours] = useState('');
+  const [isSavingOffice, setIsSavingOffice] = useState(false);
+  const [officeInitialised, setOfficeInitialised] = useState(false);
+
+  if (!officeInitialised && settings.data) {
+    setOfficeInitialised(true);
+    setOfficeName(settings.data.find((s) => s.setting_key === 'office_name')?.setting_value || '');
+    setOfficeHours(settings.data.find((s) => s.setting_key === 'office_hours')?.setting_value || '');
+  }
+
+  async function handleSaveOfficeDetails() {
+    setIsSavingOffice(true);
+    try {
+      await Promise.all([
+        settingsService.update('office_name', officeName.trim()),
+        settingsService.update('office_hours', officeHours.trim()),
+      ]);
+      showToast('Office details updated');
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error');
+    } finally {
+      setIsSavingOffice(false);
+    }
+  }
 
   const [visitorType, setVisitorType] = useState<VisitorType>('General Public');
   const [newReason, setNewReason] = useState('');
@@ -103,6 +132,29 @@ export function SettingsPage() {
           </Button>
         }
       />
+
+      <Card title="Office details" className="section-spacing">
+        <p className="field-hint" style={{ marginBottom: '0.75rem' }}>
+          Shown in the workspace header for every signed-in role. Leave blank to show the default "VETRI workspace" label.
+        </p>
+        <div className="form-grid-2">
+          <Input
+            label="Office name"
+            value={officeName}
+            onChange={(e) => setOfficeName(e.target.value)}
+            placeholder="Constituency Service Centre - Chennai"
+          />
+          <Input
+            label="Office hours"
+            value={officeHours}
+            onChange={(e) => setOfficeHours(e.target.value)}
+            placeholder="Monday-Saturday, 9:00 AM-6:00 PM"
+          />
+        </div>
+        <Button isLoading={isSavingOffice} onClick={handleSaveOfficeDetails}>
+          Save office details
+        </Button>
+      </Card>
 
       <div className="two-col">
         <Card title="Reasons by visitor type">

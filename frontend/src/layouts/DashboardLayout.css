@@ -159,6 +159,10 @@
   color: var(--color-text-muted);
 }
 
+.app-topbar-spacer {
+  flex: 1;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
