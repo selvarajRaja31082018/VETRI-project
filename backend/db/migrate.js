@@ -21,6 +21,9 @@ const FRESH = process.argv.includes('--fresh');
 
 // Table drop order respects foreign key dependencies (children first).
 const DROP_ORDER = [
+  'captured_images',
+  'capture_devices',
+  'capture_sessions',
   'audit_logs',
   'notifications',
   'settings',

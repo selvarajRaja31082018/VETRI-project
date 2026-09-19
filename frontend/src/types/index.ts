@@ -251,3 +251,107 @@ export interface DashboardMetrics {
   };
   byStatus: Record<string, number>;
 }
+
+/* --------------------------------------------------------------------------
+ * Multi-device photo capture
+ * ------------------------------------------------------------------------ */
+
+export type DeviceType = 'DESKTOP' | 'MOBILE' | 'TABLET' | 'EXTERNAL' | 'UNKNOWN';
+
+export type CameraType = 'BUILTIN_WEBCAM' | 'MOBILE_FRONT' | 'MOBILE_REAR' | 'USB_EXTERNAL' | 'UNKNOWN';
+
+export type CaptureSessionStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED';
+
+export type CaptureDeviceStatus = 'CONNECTED' | 'DISCONNECTED';
+
+/** Status surfaced in the capture UI on both desktop and mobile. */
+export type CaptureStatus =
+  | 'IDLE'
+  | 'CONNECTING'
+  | 'CONNECTED'
+  | 'DISCONNECTED'
+  | 'CAPTURING'
+  | 'UPLOADING'
+  | 'DUPLICATE'
+  | 'SUCCESS'
+  | 'ERROR';
+
+export interface CaptureSession {
+  sessionId: string;
+  status: CaptureSessionStatus;
+  purpose: string;
+  maxDevices: number;
+  duplicateScope: 'SESSION' | 'GLOBAL';
+  expiresAt: string;
+  createdAt: string;
+}
+
+/** Returned once when the desktop opens a session - carries the QR payload. */
+export interface CaptureSessionCreated {
+  sessionId: string;
+  status: CaptureSessionStatus;
+  expiresAt: string;
+  joinExpiresAt: string;
+  maxDevices: number;
+  joinUrl: string;
+  streamToken: string;
+}
+
+export interface CaptureDevice {
+  deviceId: string;
+  deviceType: DeviceType;
+  cameraType: CameraType;
+  deviceLabel: string | null;
+  status: CaptureDeviceStatus;
+  joinedAt: string;
+  lastSeenAt?: string;
+  disconnectedAt?: string | null;
+}
+
+export interface CapturedImage {
+  imageId: string;
+  sessionId: string | null;
+  deviceId: string | null;
+  deviceType: DeviceType;
+  cameraType: CameraType;
+  url: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  width: number | null;
+  height: number | null;
+  capturedAt: string;
+  status: 'STORED' | 'ATTACHED' | 'DISCARDED';
+}
+
+export interface CaptureSessionState {
+  session: CaptureSession;
+  devices: CaptureDevice[];
+  images: CapturedImage[];
+  subscribers: number;
+}
+
+export interface CaptureDeviceJoined {
+  device: CaptureDevice;
+  deviceToken: string;
+  session: CaptureSession;
+  connectedDevices: number;
+}
+
+/** Envelope pushed over the session's SSE stream. */
+export interface CaptureEvent<T = unknown> {
+  type: string;
+  payload: T;
+  at: string;
+}
+
+export interface DuplicateEventPayload {
+  sessionId: string | null;
+  deviceId: string | null;
+  deviceType: DeviceType;
+  cameraType: CameraType;
+  reason: 'EXACT' | 'PERCEPTUAL';
+  originalImageId: string;
+  originalUrl: string;
+  message: string;
+}

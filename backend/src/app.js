@@ -20,7 +20,9 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(
   cors({
-    origin: env.frontendUrl,
+    // Mobile devices join a capture session from PUBLIC_APP_URL, which is a
+    // different origin from FRONTEND_URL on a LAN setup.
+    origin: env.corsOrigins,
     credentials: true,
   }),
 );

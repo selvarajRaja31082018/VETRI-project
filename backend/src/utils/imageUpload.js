@@ -18,10 +18,12 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
 
 /**
- * Decode a `data:image/...;base64,...` string from a browser canvas/camera
- * capture and write it to backend/uploads. Returns the public URL to store.
+ * Validate and decode a `data:image/...;base64,...` string from a browser
+ * canvas/camera capture, without writing anything to disk. Split out from
+ * `saveBase64Image` so the capture pipeline can hash the bytes and run the
+ * duplicate check *before* deciding whether the file is worth storing.
  */
-function saveBase64Image(dataUrl, { publicBaseUrl }) {
+function decodeBase64Image(dataUrl) {
   if (typeof dataUrl !== 'string') {
     throw ApiError.badRequest('Image data is required');
   }
@@ -39,11 +41,47 @@ function saveBase64Image(dataUrl, { publicBaseUrl }) {
     throw ApiError.badRequest('Image must be smaller than 5MB');
   }
 
-  const extension = ALLOWED_MIME[mime];
-  const filename = `${crypto.randomUUID()}.${extension}`;
-  fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
-
-  return `${publicBaseUrl}/uploads/${filename}`;
+  return { buffer, mimeType: mime, extension: ALLOWED_MIME[mime] };
 }
 
-module.exports = { saveBase64Image, UPLOAD_DIR };
+/** Write already-decoded bytes to backend/uploads and describe the stored file. */
+function writeImageBuffer({ buffer, extension, publicBaseUrl }) {
+  const fileName = `${crypto.randomUUID()}.${extension}`;
+  const filePath = path.join(UPLOAD_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+
+  return {
+    fileName,
+    // Stored relative so the record survives the upload directory moving.
+    filePath: `uploads/${fileName}`,
+    url: `${publicBaseUrl}/uploads/${fileName}`,
+  };
+}
+
+/** Best-effort deletion, used to roll back a write when the DB insert fails. */
+function deleteStoredImage(fileName) {
+  if (!fileName) return;
+  try {
+    fs.unlinkSync(path.join(UPLOAD_DIR, path.basename(fileName)));
+  } catch {
+    /* already gone - nothing to clean up */
+  }
+}
+
+/**
+ * Decode a `data:image/...;base64,...` string from a browser canvas/camera
+ * capture and write it to backend/uploads. Returns the public URL to store.
+ */
+function saveBase64Image(dataUrl, { publicBaseUrl }) {
+  const { buffer, extension } = decodeBase64Image(dataUrl);
+  return writeImageBuffer({ buffer, extension, publicBaseUrl }).url;
+}
+
+module.exports = {
+  saveBase64Image,
+  decodeBase64Image,
+  writeImageBuffer,
+  deleteStoredImage,
+  UPLOAD_DIR,
+  MAX_BYTES,
+};

@@ -15,10 +15,14 @@ const reportRoutes = require('./reportRoutes');
 const auditRoutes = require('./auditRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const captureRoutes = require('./captureRoutes');
 
 const router = Router();
 
 router.use('/auth', authRoutes);
+// Multi-device capture mixes credential types (user session, device token, QR
+// join token) so it applies `authenticate` per route rather than globally.
+router.use('/capture', captureRoutes);
 
 // Every route below requires a valid session.
 router.use('/visitors', authenticate, visitorRoutes);

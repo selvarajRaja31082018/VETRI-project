@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { Card } from '../../components/Card';
@@ -7,6 +7,8 @@ import { Select } from '../../components/Select';
 import { Textarea } from '../../components/Textarea';
 import { Button } from '../../components/Button';
 import { CameraCapture } from '../../components/CameraCapture';
+import { MobileCameraConnect } from '../../components/MobileCameraConnect';
+import { useCaptureSession } from '../../hooks/useCaptureSession';
 import { useVisitReasons } from '../../hooks/useMasterData';
 import { visitorService } from '../../services/visitorService';
 import { useToast } from '../../hooks/useToast';
@@ -38,6 +40,24 @@ export function RegisterVisitorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
+
+  // A photo arriving from a phone fills the main identity slot when it is still
+  // empty; otherwise it waits in the panel for the operator to pick it, so an
+  // incoming shot can never silently overwrite one already accepted.
+  const handleIncomingPhoto = useCallback((image: { url: string }) => {
+    setDuplicateNotice(null);
+    setPhotoUrl((current) => current ?? image.url);
+  }, []);
+
+  const handleDuplicatePhoto = useCallback((payload: { message: string }) => {
+    setDuplicateNotice(payload.message);
+  }, []);
+
+  const capture = useCaptureSession({
+    onImage: handleIncomingPhoto,
+    onDuplicate: handleDuplicatePhoto,
+  });
 
   const reasons = useVisitReasons(visitorType);
   const reasonOptions = useMemo(
@@ -112,6 +132,15 @@ export function RegisterVisitorPage() {
             onCapture={setPhotoUrl}
             onClear={() => setPhotoUrl(null)}
             label="Capture the visitor's identity with consent, before entering their details."
+            sessionId={capture.sessionId}
+          />
+          <MobileCameraConnect
+            capture={capture}
+            onUsePhoto={(image) => {
+              setDuplicateNotice(null);
+              setPhotoUrl(image.url);
+            }}
+            duplicateMessage={duplicateNotice}
           />
         </Card>
 
@@ -209,6 +238,7 @@ export function RegisterVisitorPage() {
                 <div className="group-member-index">{index + 2}</div>
                 <CameraCapture
                   size="small"
+                  sessionId={capture.sessionId}
                   value={member.photoUrl}
                   onCapture={(url) => updateMember(index, 'photoUrl', url)}
                   onClear={() => updateMember(index, 'photoUrl', '')}

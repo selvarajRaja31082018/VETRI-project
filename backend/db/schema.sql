@@ -286,3 +286,86 @@ CREATE TABLE IF NOT EXISTS settings (
   PRIMARY KEY (id),
   UNIQUE KEY uq_settings_key (setting_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+-- ---------------------------------------------------------------------------
+-- Multi-device photo capture
+--
+-- A capture session is opened by a desktop operator; mobile/USB devices join it
+-- by scanning a QR code. Every stored photo records which session and device it
+-- came from, plus the hashes used to reject duplicate captures.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS capture_sessions (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  session_id CHAR(36) NOT NULL,
+  created_by BIGINT NOT NULL,
+  purpose VARCHAR(50) NOT NULL DEFAULT 'VISITOR_REGISTRATION',
+  status ENUM('ACTIVE', 'CLOSED', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+  max_devices INT NOT NULL DEFAULT 5,
+  duplicate_scope ENUM('SESSION', 'GLOBAL') NOT NULL DEFAULT 'SESSION',
+  expires_at DATETIME NOT NULL,
+  closed_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_capture_sessions_session_id (session_id),
+  KEY idx_capture_sessions_status (status, expires_at),
+  KEY idx_capture_sessions_creator (created_by),
+  CONSTRAINT fk_capture_sessions_user FOREIGN KEY (created_by) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+CREATE TABLE IF NOT EXISTS capture_devices (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  device_id CHAR(36) NOT NULL,
+  capture_session_id BIGINT NOT NULL,
+  device_type ENUM('DESKTOP', 'MOBILE', 'TABLET', 'EXTERNAL', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  camera_type ENUM('BUILTIN_WEBCAM', 'MOBILE_FRONT', 'MOBILE_REAR', 'USB_EXTERNAL', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  device_label VARCHAR(150) DEFAULT NULL,
+  user_agent VARCHAR(255) DEFAULT NULL,
+  ip_address VARCHAR(45) DEFAULT NULL,
+  status ENUM('CONNECTED', 'DISCONNECTED') NOT NULL DEFAULT 'CONNECTED',
+  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  disconnected_at DATETIME DEFAULT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_capture_devices_device_id (device_id),
+  KEY idx_capture_devices_session (capture_session_id, status),
+  CONSTRAINT fk_capture_devices_session FOREIGN KEY (capture_session_id)
+    REFERENCES capture_sessions (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+CREATE TABLE IF NOT EXISTS captured_images (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  image_id CHAR(36) NOT NULL,
+  capture_session_id BIGINT DEFAULT NULL,
+  capture_device_id BIGINT DEFAULT NULL,
+  session_id CHAR(36) DEFAULT NULL,
+  device_id CHAR(36) DEFAULT NULL,
+  device_type ENUM('DESKTOP', 'MOBILE', 'TABLET', 'EXTERNAL', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  camera_type ENUM('BUILTIN_WEBCAM', 'MOBILE_FRONT', 'MOBILE_REAR', 'USB_EXTERNAL', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_url VARCHAR(500) NOT NULL,
+  mime_type VARCHAR(50) NOT NULL,
+  file_size INT NOT NULL,
+  width INT DEFAULT NULL,
+  height INT DEFAULT NULL,
+  content_hash CHAR(64) NOT NULL,
+  perceptual_hash CHAR(16) DEFAULT NULL,
+  captured_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  captured_by BIGINT DEFAULT NULL,
+  status ENUM('STORED', 'ATTACHED', 'DISCARDED') NOT NULL DEFAULT 'STORED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_captured_images_image_id (image_id),
+  KEY idx_captured_images_session (session_id, captured_at),
+  KEY idx_captured_images_device (device_id),
+  KEY idx_captured_images_content_hash (content_hash),
+  KEY idx_captured_images_captured_at (captured_at),
+  CONSTRAINT fk_captured_images_session FOREIGN KEY (capture_session_id)
+    REFERENCES capture_sessions (id) ON DELETE SET NULL,
+  CONSTRAINT fk_captured_images_device FOREIGN KEY (capture_device_id)
+    REFERENCES capture_devices (id) ON DELETE SET NULL,
+  CONSTRAINT fk_captured_images_user FOREIGN KEY (captured_by)
+    REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;

@@ -106,6 +106,51 @@ const ROLE_PERMISSIONS = {
   [ROLES.ADMIN]: Object.values(PERMISSIONS),
 };
 
+/**
+ * Multi-device capture. Device and camera types are recorded against every
+ * stored photo so an image can always be traced back to the hardware that
+ * produced it.
+ */
+const DEVICE_TYPES = ['DESKTOP', 'MOBILE', 'TABLET', 'EXTERNAL', 'UNKNOWN'];
+const CAMERA_TYPES = ['BUILTIN_WEBCAM', 'MOBILE_FRONT', 'MOBILE_REAR', 'USB_EXTERNAL', 'UNKNOWN'];
+
+const CAPTURE_SESSION_STATUS = {
+  ACTIVE: 'ACTIVE',
+  CLOSED: 'CLOSED',
+  EXPIRED: 'EXPIRED',
+};
+
+const CAPTURE_DEVICE_STATUS = {
+  CONNECTED: 'CONNECTED',
+  DISCONNECTED: 'DISCONNECTED',
+};
+
+/** Scopes carried by the short-lived tokens minted for a capture session. */
+const CAPTURE_TOKEN_SCOPES = {
+  /** Encoded in the QR code; lets an unauthenticated device join the session. */
+  JOIN: 'capture:join',
+  /** Issued to a device after it joins; authorises uploads for that device. */
+  DEVICE: 'capture:device',
+  /** Issued to the desktop; authorises the SSE stream (EventSource has no headers). */
+  STREAM: 'capture:stream',
+};
+
+const CAPTURE_DEFAULTS = {
+  /** How long a session accepts new captures. */
+  sessionTtlMinutes: 30,
+  /** How long the QR code stays scannable. Shorter than the session on purpose. */
+  joinTtlMinutes: 10,
+  maxDevices: 5,
+  /**
+   * Maximum Hamming distance (out of 64 dHash bits) at which two photos are
+   * treated as the same shot. 0 = byte-identical only; ~10 starts producing
+   * false positives on genuinely different faces.
+   */
+  duplicateHammingThreshold: 6,
+  /** Devices that stop sending heartbeats for this long are marked disconnected. */
+  heartbeatTimeoutSeconds: 45,
+};
+
 module.exports = {
   ROLES,
   STATUS,
@@ -115,4 +160,10 @@ module.exports = {
   MEETING_STATUS,
   PERMISSIONS,
   ROLE_PERMISSIONS,
+  DEVICE_TYPES,
+  CAMERA_TYPES,
+  CAPTURE_SESSION_STATUS,
+  CAPTURE_DEVICE_STATUS,
+  CAPTURE_TOKEN_SCOPES,
+  CAPTURE_DEFAULTS,
 };

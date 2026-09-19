@@ -8,6 +8,7 @@ import { useAuth } from './hooks/useAuth';
 import { ROLE_HOME } from './utils/constants';
 
 import { LoginPage } from './pages/auth/LoginPage';
+import { MobileCapturePage } from './pages/capture/MobileCapturePage';
 
 import { GateOverviewPage } from './pages/gate/GateOverviewPage';
 import { RegisterVisitorPage } from './pages/gate/RegisterVisitorPage';
@@ -58,6 +59,13 @@ export default function App() {
         <ToastProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+
+            {/*
+              Public by design: a phone that scanned the QR code has no operator
+              session. Authority comes from the short-lived, session-scoped join
+              token in the URL, which the page exchanges for a device token.
+            */}
+            <Route path="/capture/:sessionId" element={<MobileCapturePage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<HomeRedirect />} />

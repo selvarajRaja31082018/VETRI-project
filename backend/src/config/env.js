@@ -26,6 +26,17 @@ const env = {
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  /**
+   * Origin baked into the mobile-capture QR code. A phone cannot resolve
+   * `localhost`, so on a LAN setup this must be the machine's reachable HTTPS
+   * origin (e.g. https://192.168.1.20:5173) - browsers only expose
+   * getUserMedia on a secure context. Falls back to FRONTEND_URL.
+   */
+  publicAppUrl: process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173',
+  /** Origins allowed to call the API. Mobile devices hit it from PUBLIC_APP_URL. */
+  get corsOrigins() {
+    return [...new Set([this.frontendUrl, this.publicAppUrl].filter(Boolean))];
+  },
 };
 
 env.isProduction = env.nodeEnv === 'production';
