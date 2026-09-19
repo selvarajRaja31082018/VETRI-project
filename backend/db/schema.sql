@@ -352,6 +352,8 @@ CREATE TABLE IF NOT EXISTS captured_images (
   height INT DEFAULT NULL,
   content_hash CHAR(64) NOT NULL,
   perceptual_hash CHAR(16) DEFAULT NULL,
+  -- 32x32 greyscale thumbnail (1024 bytes) used for near-identical comparison.
+  image_signature VARBINARY(1024) DEFAULT NULL,
   captured_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   captured_by BIGINT DEFAULT NULL,
   status ENUM('STORED', 'ATTACHED', 'DISCARDED') NOT NULL DEFAULT 'STORED',
@@ -361,6 +363,10 @@ CREATE TABLE IF NOT EXISTS captured_images (
   KEY idx_captured_images_session (session_id, captured_at),
   KEY idx_captured_images_device (device_id),
   KEY idx_captured_images_content_hash (content_hash),
+  -- Race protection: two devices posting the same bytes into one session at
+  -- the same instant cannot both insert. NULL session_id (a desktop capture
+  -- outside any session) is exempt, as MySQL allows repeated NULLs here.
+  UNIQUE KEY uq_captured_images_session_content (session_id, content_hash),
   KEY idx_captured_images_captured_at (captured_at),
   CONSTRAINT fk_captured_images_session FOREIGN KEY (capture_session_id)
     REFERENCES capture_sessions (id) ON DELETE SET NULL,

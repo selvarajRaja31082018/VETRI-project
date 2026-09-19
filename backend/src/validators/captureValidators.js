@@ -39,9 +39,12 @@ const heartbeat = {
 };
 
 /**
- * `perceptualHash` is the 64-bit dHash the browser computed from the same
- * canvas frame it encoded; optional so a client that cannot compute one still
- * gets the exact-match duplicate check.
+ * Duplicate detection is decided entirely on the server, from the decoded
+ * pixels (see utils/imageHash.js).
+ *
+ * `perceptualHash`, `width` and `height` are still accepted so existing clients
+ * keep working, but they are metadata only - the server recomputes all of them
+ * and never lets a client-supplied value influence the verdict.
  */
 const captureImage = {
   body: z.object({

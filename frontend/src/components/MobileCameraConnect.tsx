@@ -144,9 +144,12 @@ export function MobileCameraConnect({ capture, onUsePhoto, duplicateMessage }: M
             {error}
           </div>
         )}
+        {/* A duplicate is never added to "Photos received" - the server stored
+            nothing - so the rejection is reported here instead. */}
         {duplicateMessage && (
           <div role="alert" className="mobile-connect-duplicate">
-            {duplicateMessage}
+            <strong>❌ Duplicate Photo</strong>
+            <span>{duplicateMessage}</span>
           </div>
         )}
 

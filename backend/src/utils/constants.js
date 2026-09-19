@@ -142,11 +142,20 @@ const CAPTURE_DEFAULTS = {
   joinTtlMinutes: 10,
   maxDevices: 5,
   /**
-   * Maximum Hamming distance (out of 64 dHash bits) at which two photos are
-   * treated as the same shot. 0 = byte-identical only; ~10 starts producing
-   * false positives on genuinely different faces.
+   * Maximum RMSE (in grey levels, 0-255) between two 32x32 image signatures
+   * for them to count as the same photograph.
+   *
+   * Calibrated on representative frames - same subject, same background:
+   *   re-encoded at q40-q85, resized, or converted to PNG ... 0.08 - 1.40
+   *   subject moved 2px .......................................... 3.26
+   *   exposure drift ............................................. 6.10
+   *   subject moved 8px ......................................... 10.03
+   *
+   * 2.0 sits in the gap: every re-encoding of the same shot is caught, and any
+   * genuinely different photograph of the same person is saved. Raising this
+   * past ~3 starts rejecting valid re-captures, which is the bug this replaced.
    */
-  duplicateHammingThreshold: 6,
+  duplicateSignatureThreshold: 2.0,
   /** Devices that stop sending heartbeats for this long are marked disconnected. */
   heartbeatTimeoutSeconds: 45,
 };

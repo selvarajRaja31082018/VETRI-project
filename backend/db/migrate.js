@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const { applyAlterations } = require('./alterations');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const DB_HOST = process.env.DB_HOST || 'localhost';
@@ -91,6 +92,11 @@ async function main() {
     for (const statement of statements) {
       await connection.query(statement);
     }
+
+    // Tables that already existed are untouched by CREATE TABLE IF NOT EXISTS,
+    // so column/index changes are applied separately and idempotently.
+    const applied = await applyAlterations(connection, DB_NAME);
+    for (const change of applied) console.log(`  altered: ${change}`);
 
     console.log('Migration complete.');
   } finally {

@@ -39,6 +39,18 @@ function errorHandler(err, req, res, next) {
     },
   };
 
+  // A rejected duplicate photo is a normal, expected outcome that clients act
+  // on directly, so it is also surfaced at the top level of the body:
+  //   { success: false, duplicate: true, code: 'DUPLICATE_PHOTO', message }
+  // The nested `error` object is kept alongside it so every existing client and
+  // interceptor keeps working unchanged.
+  if (error.duplicate) {
+    body.duplicate = true;
+    body.code = error.code;
+    body.message = error.message;
+    if (error.meta) body.meta = error.meta;
+  }
+
   if (!env.isProduction && error.status >= 500) {
     body.error.stack = err.stack;
   }

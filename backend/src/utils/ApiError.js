@@ -30,6 +30,18 @@ class ApiError extends Error {
     return new ApiError(409, 'CONFLICT', message);
   }
 
+  /**
+   * A photo that has already been captured. Rendered by the error handler with
+   * the `duplicate: true` / `DUPLICATE_PHOTO` envelope the capture clients
+   * branch on, and carrying `meta` describing which stored image it matched.
+   */
+  static duplicatePhoto(message, meta = null) {
+    const error = new ApiError(409, 'DUPLICATE_PHOTO', message, [{ field: 'image', message }]);
+    error.duplicate = true;
+    error.meta = meta;
+    return error;
+  }
+
   /** Business rule violation (valid syntax, invalid in the current state). */
   static unprocessable(message = 'Action is not allowed in the current state') {
     return new ApiError(422, 'BUSINESS_RULE_VIOLATION', message);

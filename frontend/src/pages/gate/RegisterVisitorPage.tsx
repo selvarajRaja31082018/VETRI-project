@@ -50,9 +50,15 @@ export function RegisterVisitorPage() {
     setPhotoUrl((current) => current ?? image.url);
   }, []);
 
-  const handleDuplicatePhoto = useCallback((payload: { message: string }) => {
-    setDuplicateNotice(payload.message);
-  }, []);
+  // A duplicate from any device must be visible even when the mobile-camera
+  // panel is closed, so it raises a toast as well as the in-panel banner.
+  const handleDuplicatePhoto = useCallback(
+    (payload: { message: string }) => {
+      setDuplicateNotice(payload.message);
+      showToast(`❌ Duplicate Photo — ${payload.message}`, 'error');
+    },
+    [showToast],
+  );
 
   const capture = useCaptureSession({
     onImage: handleIncomingPhoto,

@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button';
 import { describeCameraError } from '../../utils/cameraErrors';
 import { captureService } from '../../services/captureService';
-import { ApiClientError } from '../../services/api';
+import { ApiClientError, isDuplicatePhotoError } from '../../services/api';
 import { getErrorMessage } from '../../utils/errors';
 import { computePerceptualHash } from '../../utils/imageHash';
 import { classifyCameraFromStream, describeDevice, detectDeviceType } from '../../utils/deviceInfo';
@@ -199,7 +199,9 @@ export function MobileCapturePage() {
       setStatus('SUCCESS');
       setMessage('Photo sent to the desktop.');
     } catch (err) {
-      if (err instanceof ApiClientError && err.code === 'DUPLICATE_IMAGE') {
+      // Rejected duplicate: nothing was stored, so nothing is counted as sent
+      // and the preview is cleared. The operator is told exactly what to do.
+      if (isDuplicatePhotoError(err)) {
         setStatus('DUPLICATE');
         setMessage(err.message);
         setLastPreview(null);
@@ -245,10 +247,17 @@ export function MobileCapturePage() {
       </div>
       <canvas ref={canvasRef} hidden />
 
-      {message && (
-        <p className={`mobile-capture-message mobile-capture-message-${statusCopy.tone}`} role="alert">
-          {message}
-        </p>
+      {status === 'DUPLICATE' ? (
+        <div className="mobile-capture-duplicate" role="alert">
+          <strong>❌ Duplicate Photo</strong>
+          <span>{message}</span>
+        </div>
+      ) : (
+        message && (
+          <p className={`mobile-capture-message mobile-capture-message-${statusCopy.tone}`} role="alert">
+            {message}
+          </p>
+        )
       )}
 
       <footer className="mobile-capture-actions">

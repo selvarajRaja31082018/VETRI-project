@@ -141,13 +141,18 @@ async function reapStaleDevices(captureSessionId, timeoutSeconds) {
 
 /* -------------------------------------------------------------------- images */
 
-async function createImage(image) {
-  const result = await db.query(
+/**
+ * Insert a capture. Pass `executor` (a transaction handle from db.transaction)
+ * so the duplicate check and the insert commit as one unit.
+ */
+async function createImage(image, executor = db) {
+  const result = await executor.query(
     `INSERT INTO captured_images
        (image_id, capture_session_id, capture_device_id, session_id, device_id,
         device_type, camera_type, file_name, file_path, file_url, mime_type,
-        file_size, width, height, content_hash, perceptual_hash, captured_at, captured_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        file_size, width, height, content_hash, perceptual_hash, image_signature,
+        captured_at, captured_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       image.imageId,
       image.captureSessionId,
@@ -165,6 +170,7 @@ async function createImage(image) {
       image.height,
       image.contentHash,
       image.perceptualHash,
+      image.signature,
       image.capturedAt,
       image.capturedBy,
     ],
@@ -175,6 +181,11 @@ async function createImage(image) {
 const IMAGE_COLUMNS = `image_id, session_id, device_id, device_type, camera_type,
        file_url, file_path, mime_type, file_size, width, height,
        content_hash, perceptual_hash, captured_at, status`;
+
+/** Comparison rows carry the signature blob; everything else does not, so a
+ *  listing never drags 1KB per image across the wire. */
+const COMPARISON_COLUMNS = `image_id, session_id, device_id, file_url,
+       content_hash, perceptual_hash, image_signature, captured_at`;
 
 function listImages(sessionId) {
   return db.query(
@@ -191,18 +202,18 @@ function findImageByPublicId(imageId) {
 }
 
 /** Exact byte-for-byte match, restricted to the duplicate scope. */
-function findByContentHash(contentHash, { sessionId, scope, sinceDays }) {
+function findByContentHash(contentHash, { sessionId, scope, sinceDays }, executor = db) {
   if (scope === 'GLOBAL') {
-    return db.queryOne(
-      `SELECT ${IMAGE_COLUMNS} FROM captured_images
+    return executor.queryOne(
+      `SELECT ${COMPARISON_COLUMNS} FROM captured_images
         WHERE content_hash = ? AND status <> 'DISCARDED'
           AND captured_at >= (NOW() - INTERVAL ? DAY)
         ORDER BY captured_at ASC LIMIT 1`,
       [contentHash, sinceDays],
     );
   }
-  return db.queryOne(
-    `SELECT ${IMAGE_COLUMNS} FROM captured_images
+  return executor.queryOne(
+    `SELECT ${COMPARISON_COLUMNS} FROM captured_images
       WHERE content_hash = ? AND session_id = ? AND status <> 'DISCARDED'
       ORDER BY captured_at ASC LIMIT 1`,
     [contentHash, sessionId],
@@ -210,27 +221,40 @@ function findByContentHash(contentHash, { sessionId, scope, sinceDays }) {
 }
 
 /**
- * Candidate rows for the near-duplicate (Hamming) comparison. Hamming distance
- * is not expressible as an index lookup in MySQL, so the candidate set is
- * narrowed by scope and time first and compared in JS. For a session that is a
- * handful of rows; the GLOBAL scope is capped so the comparison stays bounded.
+ * Candidate rows for the near-identical comparison.
+ *
+ * Image similarity is not expressible as an index lookup, so the candidate set
+ * is narrowed by scope and recency in SQL and the pixel comparison runs in JS.
+ * Within a session that is a handful of rows; GLOBAL scope is capped so the
+ * work stays bounded (each row carries a 1KB signature).
  */
-function listPerceptualCandidates({ sessionId, scope, sinceDays, limit = 500 }) {
+function listComparisonCandidates({ sessionId, scope, sinceDays, limit = 500 }, executor = db) {
   if (scope === 'GLOBAL') {
-    return db.query(
-      `SELECT ${IMAGE_COLUMNS} FROM captured_images
-        WHERE perceptual_hash IS NOT NULL AND status <> 'DISCARDED'
+    return executor.query(
+      `SELECT ${COMPARISON_COLUMNS} FROM captured_images
+        WHERE image_signature IS NOT NULL AND status <> 'DISCARDED'
           AND captured_at >= (NOW() - INTERVAL ? DAY)
         ORDER BY captured_at DESC LIMIT ?`,
       [sinceDays, limit],
     );
   }
-  return db.query(
-    `SELECT ${IMAGE_COLUMNS} FROM captured_images
-      WHERE perceptual_hash IS NOT NULL AND session_id = ? AND status <> 'DISCARDED'
+  return executor.query(
+    `SELECT ${COMPARISON_COLUMNS} FROM captured_images
+      WHERE image_signature IS NOT NULL AND session_id = ? AND status <> 'DISCARDED'
       ORDER BY captured_at DESC LIMIT ?`,
     [sessionId, limit],
   );
+}
+
+/**
+ * Take an exclusive lock on the session row for the duration of the enclosing
+ * transaction. Captures into one session are therefore serialised, which makes
+ * the "check for a duplicate, then insert" pair atomic - without it two devices
+ * posting near-identical images at the same instant could both pass the check.
+ * Byte-identical races are additionally caught by the unique index.
+ */
+function lockSessionForCapture(sessionId, executor) {
+  return executor.queryOne('SELECT id FROM capture_sessions WHERE session_id = ? FOR UPDATE', [sessionId]);
 }
 
 /** Flip an image to ATTACHED once it has been bound to a visitor record. */
@@ -255,6 +279,7 @@ module.exports = {
   listImages,
   findImageByPublicId,
   findByContentHash,
-  listPerceptualCandidates,
+  listComparisonCandidates,
+  lockSessionForCapture,
   markImageStatus,
 };

@@ -139,3 +139,28 @@
   font-size: 0.74rem;
   opacity: 0.65;
 }
+
+/* Duplicate rejection: deliberately prominent. Nothing was saved, and the
+   operator has to act (take a different photo), so this must not read as a
+   passing status line. */
+.mobile-capture-duplicate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #fbbf24;
+  background: rgba(217, 119, 6, 0.18);
+  color: #fde68a;
+  text-align: center;
+}
+
+.mobile-capture-duplicate strong {
+  font-size: 0.95rem;
+  color: #fcd34d;
+}
+
+.mobile-capture-duplicate span {
+  font-size: 0.82rem;
+  line-height: 1.4;
+}

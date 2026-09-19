@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadService } from '../services/uploadService';
 import { captureService } from '../services/captureService';
-import { ApiClientError } from '../services/api';
+import { isDuplicatePhotoError } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
 import { computePerceptualHash } from '../utils/imageHash';
 import { describeCameraError } from '../utils/cameraErrors';
@@ -217,9 +217,9 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
       onCapture(url);
       setMode('captured');
     } catch (err) {
-      // A duplicate is a normal outcome, not a failure: keep the shot on screen
-      // and tell the operator to take a different one.
-      if (err instanceof ApiClientError && err.code === 'DUPLICATE_IMAGE') {
+      // A duplicate is a normal outcome, not a failure: clear the preview so
+      // nothing is shown as captured, and tell the operator to take another.
+      if (isDuplicatePhotoError(err)) {
         setPreview(null);
         setError(err.message);
         setMode('duplicate');

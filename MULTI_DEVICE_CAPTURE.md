@@ -28,7 +28,7 @@ exactly the old behaviour if anything in the new pipeline is unavailable.
       │ Express API                                               │
       │  captureRoutes → captureController → captureService       │
       │        │                  │                               │
-      │        │                  ├─ imageHash  (sha256 + dHash)  │
+      │        │                  ├─ imageHash (sha256 + signature)│
       │        │                  ├─ imageUpload (write to disk)   │
       │        │                  └─ captureRepository (MySQL)     │
       │        └─ realtime/sessionBus  (EventEmitter → SSE)        │
@@ -83,9 +83,12 @@ Appended to `backend/db/schema.sql` (all `CREATE TABLE IF NOT EXISTS`; run
 | Capture Date/Time | `captured_at` |
 | Image ID | `image_id` (UUID) |
 | Image/File Path | `file_path` (relative) + `file_url` (public) |
+| Image Hash | `content_hash` (SHA-256) |
+| Perceptual Hash | `perceptual_hash` (dHash) |
 
-plus `mime_type`, `file_size`, `width`, `height`, `content_hash` (SHA-256),
-`perceptual_hash` (dHash), `captured_by`, `status`.
+plus `image_signature` (32×32 greyscale, the near-identical comparison),
+`mime_type`, `file_size`, `width`, `height`, `captured_by`, `status`, and a
+`UNIQUE (session_id, content_hash)` constraint for race protection.
 
 `captured_images.session_id`/`device_id` are denormalised next to the FKs so the
 photo's provenance survives a session or device row being removed.
@@ -139,30 +142,84 @@ every 25 s to stop proxies closing an idle connection.
 
 ## 5. Duplicate detection
 
-Two layers, checked **before** any file is written:
+**All of it runs on the backend**, on the decoded pixels of the uploaded image.
+Nothing the client sends influences the verdict.
 
-1. **Exact** — SHA-256 of the decoded bytes, computed server-side. Catches a
-   replayed or retried upload.
-2. **Near** — a 64-bit dHash computed in the browser
-   (`frontend/src/utils/imageHash.ts`) from the same canvas frame that gets
-   encoded. Catches "the same shot again" after JPEG re-encoding or resizing,
-   which a byte hash cannot. A candidate within a Hamming distance of 6 is a
-   duplicate.
+### Why the first attempt was wrong
 
-The perceptual hash is client-supplied, so it is treated as a hint: it can only
-ever cause a capture to be **rejected**, never to bypass a check. The
-authoritative exact-match check always runs on the server. (Recomputing the
-dHash server-side needs a native image library such as `sharp`; it can be
-dropped in behind `imageHash.js` with no caller changes.)
+The original implementation compared a 64-bit dHash computed *in the browser*
+and rejected anything within 6 bits. Measured on representative frames (same
+subject, same background):
 
-Scope is per-session by default (`capture_sessions.duplicate_scope`), with a
-`GLOBAL` mode that looks back 30 days.
+| Case | dHash distance |
+|---|---|
+| duplicate — re-encoded / resized | 0 – 5 |
+| **new photo, same person, exposure drift** | **3** |
+| **new photo, same person, moved 4px** | **6** |
 
-A duplicate returns **HTTP 409 / `DUPLICATE_IMAGE`** with exactly the required
-message — *"This photo has already been captured. Please capture a new photo."* —
-and nothing is written to disk or to the database.
+The two ranges **overlap**, so no dHash threshold can separate them. A dHash
+only describes coarse structure, and every photo taken at the same desk shares
+that structure. This is why a valid re-capture of the same person was being
+rejected.
 
----
+### What it does now
+
+| Layer | Measure | Catches |
+|---|---|---|
+| 1 | SHA-256 of decoded bytes | the identical file submitted again |
+| 2 | RMSE of a 32×32 greyscale signature | the same shot re-encoded, resized or re-saved |
+
+A photo is a duplicate only when the signature RMSE is **≤ 2.0** grey levels.
+Calibrated:
+
+| Case | RMSE | Verdict |
+|---|---|---|
+| re-encoded q40 – q85, resized, PNG | 0.08 – 1.40 | duplicate |
+| same person, moved 2px | 3.26 | **saved** |
+| same person, exposure drift | 6.10 | **saved** |
+| same person, moved 8px | 10.03 | **saved** |
+
+The dHash is still computed and stored (a cheap, indexable fingerprint) but
+**decides nothing**.
+
+### What it deliberately is not
+
+This is image comparison, not face recognition. **Same person ≠ duplicate
+photo.** The comparison never looks at visitor, member, name, mobile, device or
+session — only at pixels.
+
+### Response
+
+A duplicate returns **HTTP 409**, writes **no file**, creates **no database
+row**, and emits **no "photo received"** event:
+
+```json
+{
+  "success": false,
+  "duplicate": true,
+  "code": "DUPLICATE_PHOTO",
+  "message": "This photo has already been captured. Please capture a new photo.",
+  "meta": { "reason": "EXACT | NEAR_IDENTICAL", "distance": 0.41, "originalImageId": "…" },
+  "error": { "code": "DUPLICATE_PHOTO", "message": "…", "details": [ … ] }
+}
+```
+
+The nested `error` object is kept alongside the flat fields so every existing
+client and interceptor keeps working unchanged.
+
+### Race protection
+
+Three layers, so two devices posting the same image at the same instant cannot
+both be saved:
+
+1. `SELECT … FOR UPDATE` on the session row serialises captures within a
+   session, making "check then insert" atomic.
+2. The whole check-and-insert runs in one transaction — a rejected photo rolls
+   back with nothing written.
+3. `UNIQUE (session_id, content_hash)` is the final backstop; whoever loses the
+   race is reported as the duplicate it is, not a 500.
+
+Verified: four simultaneous identical uploads → exactly one saved, three 409s.
 
 ## 6. Frontend changes
 
@@ -190,9 +247,17 @@ and nothing is written to disk or to the database.
 - `vite.config.ts` — `server.host: true` so a phone on the LAN can reach the dev server.
 
 **Status UI.** Desktop shows Connected / Connecting / Reconnecting /
-Disconnected / Connection failed, a per-device connected dot, and a duplicate
-banner. Mobile shows Connecting / Connected / Capturing / Sending / Duplicate /
-Photo sent / Disconnected / Error.
+Disconnected / Connection failed, a per-device connected dot, a duplicate
+banner in the panel *and* an error toast (so a rejection is visible even with
+the panel closed). Mobile shows Connecting / Connected / Capturing / Sending /
+Duplicate / Photo sent / Disconnected / Error.
+
+**Duplicate handling.** `isDuplicatePhotoError()` in `services/api.ts` is the
+single place that recognises the rejection; `CameraCapture` and
+`MobileCapturePage` branch on it explicitly. A duplicate clears the preview,
+is never counted as sent, and never enters "Photos received" — the server
+stored nothing, so no `image.captured` event is emitted for it. The phone shows
+a dedicated **❌ Duplicate Photo** banner.
 
 **Error handling.** Permission denial, no camera found, camera busy, camera
 disconnected, insecure context, network failure and duplicates each get their
@@ -234,11 +299,33 @@ browsers routinely skip.
 
 ## 9. Verification
 
-A 42-assertion end-to-end test was run against a live server and MySQL covering:
-session creation and QR issuance; SSE handshake and event delivery; two devices
-joining one session; mobile, tablet and desktop/USB captures; exact and
-perceptual duplicate rejection with the exact required message; full device
-metadata persistence; cross-scope token rejection (user↔device↔join↔stream);
-cross-operator session isolation; the legacy `/uploads/photo` endpoint still
-working; and captures being refused after a session closes. All 42 passed, and
-the test data was removed afterwards.
+Two suites were run against a live server and MySQL — **65 assertions, all
+passing**, with the test data removed afterwards.
+
+**Duplicate behaviour (22)** — the scenarios from the brief, using synthetic
+frames that share subject and background:
+
+| Test | Result |
+|---|---|
+| 1 — capture Photo A | saved, all 9 metadata fields present |
+| 2 — submit Photo A again | 409, exact response shape |
+| 2b — re-encoded copy of Photo A | 409 |
+| 3 — same person moved / re-posed / exposure drift / both | **all 4 saved** |
+| 4, 5 — two devices each capture | both saved, both reached the desktop over SSE |
+| 6 — four simultaneous identical uploads | exactly 1 saved, 3 rejected |
+| 7 — malformed image | 400 |
+| 8 — invalid device token | 401 |
+| — duplicates created no rows, no files, no received-photo entries | confirmed |
+| — desktop capture obeys the same rules; `/uploads/photo` still works | confirmed |
+
+Also verified: a client sending a *spoofed* perceptual hash cannot change the
+verdict, and every stored row has its file on disk and a 1024-byte signature.
+
+**Capture pipeline regression (43)** — session/QR issuance, SSE delivery, two
+devices in one session, mobile/tablet/desktop-USB captures, cross-scope token
+rejection, cross-operator isolation, legacy endpoint, and captures refused
+after a session closes.
+
+Tests 7 and 8 are client-side behaviours (camera permission denial, phone
+disconnect); the server contracts they depend on are asserted above, and the
+UI paths are `describeCameraError()` and the heartbeat-timeout reaping.

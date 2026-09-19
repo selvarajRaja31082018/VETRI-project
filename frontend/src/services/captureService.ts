@@ -105,12 +105,14 @@ deviceApi.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      const body = error.response.data?.error;
+      const data = error.response.data;
+      const body = data?.error;
+      // Duplicate rejections also carry code/message at the top level.
       return Promise.reject(
         new ApiClientError(
           error.response.status,
-          body?.code || 'UNKNOWN_ERROR',
-          body?.message || 'Something went wrong. Please try again.',
+          body?.code || data?.code || 'UNKNOWN_ERROR',
+          body?.message || data?.message || 'Something went wrong. Please try again.',
           body?.details || [],
         ),
       );

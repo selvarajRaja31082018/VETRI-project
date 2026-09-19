@@ -25,6 +25,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/** Stable code the backend returns when a photo has already been captured. */
+export const DUPLICATE_PHOTO_CODE = 'DUPLICATE_PHOTO';
+
 /** Normalised client-side error so components never touch axios internals. */
 export class ApiClientError extends Error {
   code: string;
@@ -38,6 +41,17 @@ export class ApiClientError extends Error {
     this.code = code;
     this.details = details;
   }
+
+  /** A rejected duplicate photo - an expected outcome the capture UI branches
+   *  on, not a failure to report as a generic error. */
+  get isDuplicatePhoto(): boolean {
+    return this.status === 409 && this.code === DUPLICATE_PHOTO_CODE;
+  }
+}
+
+/** True when `error` is the backend's duplicate-photo rejection. */
+export function isDuplicatePhotoError(error: unknown): error is ApiClientError {
+  return error instanceof ApiClientError && error.isDuplicatePhoto;
 }
 
 let onUnauthorized: (() => void) | null = null;
@@ -52,11 +66,15 @@ api.interceptors.response.use(
       const { status, data } = error.response;
       if (status === 401 && onUnauthorized) onUnauthorized();
       const body = data?.error;
+      // Duplicate-photo rejections also carry `code`/`message` at the top level
+      // of the envelope; fall back to those so the error is recognised even if
+      // only the flat form is present.
+      const flat = data as { code?: string; message?: string } | undefined;
       return Promise.reject(
         new ApiClientError(
           status,
-          body?.code || 'UNKNOWN_ERROR',
-          body?.message || 'Something went wrong. Please try again.',
+          body?.code || flat?.code || 'UNKNOWN_ERROR',
+          body?.message || flat?.message || 'Something went wrong. Please try again.',
           body?.details || [],
         ),
       );

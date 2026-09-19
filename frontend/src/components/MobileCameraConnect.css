@@ -20,14 +20,25 @@
 }
 
 .mobile-connect-duplicate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   border: 1px solid var(--color-warning, #b45309);
   background: rgba(180, 83, 9, 0.08);
   color: var(--color-warning, #b45309);
   border-radius: 8px;
   padding: 0.6rem 0.75rem;
-  font-size: 0.82rem;
-  font-weight: 600;
   margin-bottom: 0.9rem;
+}
+
+.mobile-connect-duplicate strong {
+  font-size: 0.86rem;
+}
+
+.mobile-connect-duplicate span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .mobile-connect-body {
