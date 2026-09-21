@@ -207,7 +207,9 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
               perceptualHash,
               width: side,
               height: side,
-              deviceType,
+              // A USB camera is a distinct device class, even though the
+              // browser driving it is the desktop one.
+              deviceType: cameraType === 'USB_CAMERA' ? 'EXTERNAL_USB' : deviceType,
               cameraType,
               sessionId,
             })
@@ -282,7 +284,7 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
             {videoInputs.map((input) => (
               <option key={input.deviceId} value={input.deviceId}>
                 {input.label}
-                {input.cameraType === 'USB_EXTERNAL' ? ' (USB)' : ''}
+                {input.cameraType === 'USB_CAMERA' ? ' (USB)' : ''}
               </option>
             ))}
           </select>

@@ -48,10 +48,10 @@ export function classifyCamera(
     return 'MOBILE_REAR'; // handheld capture defaults to the rear camera
   }
 
-  if (EXTERNAL_LABEL.test(normalisedLabel) && !INTEGRATED_LABEL.test(normalisedLabel)) return 'USB_EXTERNAL';
-  if (normalisedLabel) return 'BUILTIN_WEBCAM';
+  if (EXTERNAL_LABEL.test(normalisedLabel) && !INTEGRATED_LABEL.test(normalisedLabel)) return 'USB_CAMERA';
+  if (normalisedLabel) return 'DESKTOP_WEBCAM';
 
-  return deviceType === 'DESKTOP' ? 'BUILTIN_WEBCAM' : 'UNKNOWN';
+  return deviceType === 'DESKTOP' ? 'DESKTOP_WEBCAM' : 'UNKNOWN';
 }
 
 /** Read the camera classification straight off a live track. */

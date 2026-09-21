@@ -256,9 +256,9 @@ export interface DashboardMetrics {
  * Multi-device photo capture
  * ------------------------------------------------------------------------ */
 
-export type DeviceType = 'DESKTOP' | 'MOBILE' | 'TABLET' | 'EXTERNAL' | 'UNKNOWN';
+export type DeviceType = 'DESKTOP' | 'MOBILE' | 'TABLET' | 'EXTERNAL_USB' | 'UNKNOWN';
 
-export type CameraType = 'BUILTIN_WEBCAM' | 'MOBILE_FRONT' | 'MOBILE_REAR' | 'USB_EXTERNAL' | 'UNKNOWN';
+export type CameraType = 'DESKTOP_WEBCAM' | 'MOBILE_FRONT' | 'MOBILE_REAR' | 'USB_CAMERA' | 'UNKNOWN';
 
 export type CaptureSessionStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED';
 
@@ -287,6 +287,19 @@ export interface CaptureSession {
 }
 
 /** Returned once when the desktop opens a session - carries the QR payload. */
+/** A duplicate that was rejected - recorded for the operator, never displayed
+ *  as a received photo. */
+export interface DuplicateAttempt {
+  imageId: string;
+  sessionId: string;
+  deviceId: string | null;
+  deviceType: DeviceType;
+  cameraType: CameraType;
+  imageHash: string;
+  duplicateOf: string | null;
+  attemptedAt: string;
+}
+
 export interface CaptureSessionCreated {
   sessionId: string;
   status: CaptureSessionStatus;
@@ -321,7 +334,9 @@ export interface CapturedImage {
   width: number | null;
   height: number | null;
   capturedAt: string;
-  status: 'STORED' | 'ATTACHED' | 'DISCARDED';
+  status: 'SUCCESS' | 'DUPLICATE' | 'FAILED';
+  imageHash?: string;
+  perceptualHash?: string | null;
 }
 
 export interface CaptureSessionState {
@@ -332,6 +347,8 @@ export interface CaptureSessionState {
 }
 
 export interface CaptureDeviceJoined {
+  /** Resolved by the server from the signed token, not sent by the client. */
+  sessionId: string;
   device: CaptureDevice;
   deviceToken: string;
   session: CaptureSession;

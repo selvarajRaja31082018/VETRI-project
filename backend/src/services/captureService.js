@@ -10,13 +10,14 @@ const repo = require('../repositories/captureRepository');
 const bus = require('../realtime/sessionBus');
 const captureToken = require('../utils/captureToken');
 const { analyseImage, signatureDistance } = require('../utils/imageHash');
-const { decodeBase64Image, writeImageBuffer, deleteStoredImage } = require('../utils/imageUpload');
+const { decodeUpload, writeImageBuffer, deleteStoredImage } = require('../utils/imageUpload');
 const {
   CAPTURE_DEFAULTS,
   CAPTURE_SESSION_STATUS,
   CAPTURE_DEVICE_STATUS,
   DEVICE_TYPES,
   CAMERA_TYPES,
+  IMAGE_STATUS,
 } = require('../utils/constants');
 
 const DUPLICATE_MESSAGE = 'This photo has already been captured. Please capture a new photo.';
@@ -37,6 +38,11 @@ const GLOBAL_SCOPE_DAYS = 30;
 
 function minutesFromNow(minutes) {
   return new Date(Date.now() + minutes * 60_000);
+}
+
+/** The URL encoded into the QR code. Token only - nothing else. */
+function buildJoinUrl(joinToken) {
+  return `${env.publicAppUrl}/mobile-camera?t=${encodeURIComponent(joinToken)}`;
 }
 
 const asDeviceType = (value) => (DEVICE_TYPES.includes(value) ? value : 'UNKNOWN');
@@ -122,6 +128,8 @@ async function createSession(user, options = {}) {
   const expiresAt = minutesFromNow(sessionTtl);
   const joinTtlMinutes = Math.min(CAPTURE_DEFAULTS.joinTtlMinutes, sessionTtl);
 
+  const joinToken = captureToken.signJoinToken(sessionId, joinTtlMinutes * 60);
+
   await repo.createSession({
     sessionId,
     createdBy: user.id,
@@ -129,9 +137,9 @@ async function createSession(user, options = {}) {
     maxDevices: options.maxDevices || CAPTURE_DEFAULTS.maxDevices,
     duplicateScope: options.duplicateScope === 'GLOBAL' ? 'GLOBAL' : 'SESSION',
     expiresAt,
+    tokenHash: captureToken.hashToken(joinToken),
   });
 
-  const joinToken = captureToken.signJoinToken(sessionId, joinTtlMinutes * 60);
   const streamToken = captureToken.signStreamToken(sessionId, user.id, sessionTtl * 60);
 
   return {
@@ -140,9 +148,10 @@ async function createSession(user, options = {}) {
     expiresAt,
     joinExpiresAt: minutesFromNow(joinTtlMinutes),
     maxDevices: options.maxDevices || CAPTURE_DEFAULTS.maxDevices,
-    // The token travels in the URL because a QR scan lands in a fresh browser
-    // with no storage; it is short-lived and single-scope for that reason.
-    joinUrl: `${env.publicAppUrl}/capture/${sessionId}?t=${encodeURIComponent(joinToken)}`,
+    // The QR carries only a short-lived, single-scope token - no session id,
+    // no operator identity, nothing internal. The server derives the session
+    // from the signed token when the device joins.
+    joinUrl: buildJoinUrl(joinToken),
     streamToken,
   };
 }
@@ -193,24 +202,34 @@ async function refreshJoinToken(sessionId, user) {
   const remainingMs = new Date(session.expires_at).getTime() - Date.now();
   const joinTtlMinutes = Math.max(1, Math.min(CAPTURE_DEFAULTS.joinTtlMinutes, Math.floor(remainingMs / 60_000)));
   const joinToken = captureToken.signJoinToken(sessionId, joinTtlMinutes * 60);
+  // Overwriting the stored digest is what makes the previous QR stop working.
+  await repo.updateSessionTokenHash(sessionId, captureToken.hashToken(joinToken));
 
   return {
     sessionId,
-    joinUrl: `${env.publicAppUrl}/capture/${sessionId}?t=${encodeURIComponent(joinToken)}`,
+    joinUrl: buildJoinUrl(joinToken),
     joinExpiresAt: minutesFromNow(joinTtlMinutes),
   };
 }
 
 /* ------------------------------------------------------------------- devices */
 
-/** A scanned phone posts here with its join token to become a session device. */
-async function joinSession(sessionId, joinToken, deviceInfo, request) {
+/**
+ * A scanned phone posts here with the token from the QR code.
+ *
+ * The session is derived from the signed token, never from the request - the
+ * client cannot name the session it wants to join. The token is additionally
+ * checked against the digest stored on the session, so a token from a QR that
+ * has since been rotated is refused even while its JWT is still in date.
+ */
+async function joinSession(joinToken, deviceInfo, request) {
   const payload = captureToken.verifyJoinToken(joinToken);
-  if (payload.sid !== sessionId) {
-    throw ApiError.forbidden('This capture link does not match the session');
-  }
+  const session = await requireActiveSession(payload.sid);
+  const sessionId = session.session_id;
 
-  const session = await requireActiveSession(sessionId);
+  if (session.token_hash && session.token_hash !== captureToken.hashToken(joinToken)) {
+    throw ApiError.unauthorized('This QR code is no longer valid. Ask the operator for a new one.');
+  }
 
   await repo.reapStaleDevices(session.id, CAPTURE_DEFAULTS.heartbeatTimeoutSeconds);
   const connected = await repo.countConnectedDevices(session.id);
@@ -245,10 +264,11 @@ async function joinSession(sessionId, joinToken, deviceInfo, request) {
     status: CAPTURE_DEVICE_STATUS.CONNECTED,
     joinedAt: new Date().toISOString(),
   };
-  bus.publish(sessionId, bus.EVENTS.DEVICE_JOINED, dto);
+  bus.publish(sessionId, bus.EVENTS.DEVICE_CONNECTED, dto);
   logger.info(`Capture device ${deviceId} joined session ${sessionId}`);
 
   return {
+    sessionId,
     device: dto,
     deviceToken,
     session: toSessionDto(session),
@@ -285,9 +305,19 @@ async function heartbeat(device, session, patch = {}) {
   return { deviceId: device.device_id, status: CAPTURE_DEVICE_STATUS.CONNECTED };
 }
 
+/**
+ * Mark a device offline by its public ids. Used when a socket drops, where the
+ * full device/session rows are not to hand - the ids come from the socket's
+ * signed token, so they are already trusted.
+ */
+async function markDeviceDisconnected(sessionId, deviceId) {
+  await repo.markDeviceDisconnected(deviceId);
+  bus.publish(sessionId, bus.EVENTS.DEVICE_DISCONNECTED, { sessionId, deviceId });
+}
+
 async function leaveSession(device, session) {
   await repo.markDeviceDisconnected(device.device_id);
-  bus.publish(session.session_id, bus.EVENTS.DEVICE_LEFT, { deviceId: device.device_id });
+  bus.publish(session.session_id, bus.EVENTS.DEVICE_DISCONNECTED, { deviceId: device.device_id });
   return { deviceId: device.device_id, status: CAPTURE_DEVICE_STATUS.DISCONNECTED };
 }
 
@@ -347,6 +377,55 @@ function duplicateOutcome(duplicate, context) {
   };
 }
 
+/**
+ * Record a rejected capture for auditing.
+ *
+ * The photo itself is NOT stored - no file is written, and the row carries no
+ * path. It exists only so an operator can later see that a duplicate was
+ * attempted, by which device and against which original. Written outside the
+ * capture transaction (that one rolled back) and best-effort: an audit failure
+ * must never turn a clean duplicate rejection into a server error.
+ */
+async function recordDuplicateAttempt({
+  imageId,
+  session,
+  origin,
+  context,
+  fingerprints,
+  mimeType,
+  fileSize,
+  capturedAt,
+  duplicateOf,
+}) {
+  try {
+    await repo.createImage({
+      imageId,
+      captureSessionId: session ? session.id : null,
+      captureDeviceId: origin.kind === 'device' ? origin.device.id : null,
+      sessionId: context.sessionId,
+      deviceId: context.deviceId,
+      deviceType: context.deviceType,
+      cameraType: context.cameraType,
+      fileName: null,
+      filePath: null,
+      fileUrl: null,
+      mimeType,
+      fileSize,
+      width: fingerprints.width,
+      height: fingerprints.height,
+      contentHash: fingerprints.contentHash,
+      perceptualHash: fingerprints.perceptualHash,
+      signature: null,
+      capturedAt,
+      capturedBy: origin.kind === 'user' ? origin.user.id : session ? session.created_by : null,
+      status: IMAGE_STATUS.DUPLICATE,
+      duplicateOf,
+    });
+  } catch (error) {
+    logger.warn('Could not record duplicate capture attempt', error.message);
+  }
+}
+
 /* -------------------------------------------------------------------- images */
 
 /**
@@ -372,7 +451,8 @@ async function submitCapture(origin, payload) {
       ? asCameraType(payload.cameraType || origin.device.camera_type)
       : asCameraType(payload.cameraType || 'BUILTIN_WEBCAM');
 
-  const { buffer, mimeType, extension } = decodeBase64Image(payload.image);
+  // One decode path for both transports: multipart file or base64 data URL.
+  const { buffer, mimeType, extension } = decodeUpload({ file: payload.file, dataUrl: payload.image });
 
   // Fingerprints are derived here, from the decoded pixels. Anything the client
   // sent about the image is metadata only and never influences the verdict.
@@ -396,7 +476,14 @@ async function submitCapture(origin, payload) {
       const duplicate = await findDuplicate({ fingerprints, sessionId, scope, executor: tx });
       if (duplicate) throw new DuplicateCaptureError(duplicateOutcome(duplicate, context));
 
-      stored = writeImageBuffer({ buffer, extension, publicBaseUrl: payload.publicBaseUrl });
+      stored = writeImageBuffer({
+        buffer,
+        extension,
+        publicBaseUrl: payload.publicBaseUrl,
+        sessionId,
+        deviceId,
+        imageId,
+      });
 
       await repo.createImage(
         {
@@ -419,6 +506,8 @@ async function submitCapture(origin, payload) {
           signature: fingerprints.signature,
           capturedAt,
           capturedBy: origin.kind === 'user' ? origin.user.id : session ? session.created_by : null,
+          status: IMAGE_STATUS.SUCCESS,
+          duplicateOf: null,
         },
         tx,
       );
@@ -438,7 +527,7 @@ async function submitCapture(origin, payload) {
         imageHash: fingerprints.contentHash,
         perceptualHash: fingerprints.perceptualHash,
         capturedAt: capturedAt.toISOString(),
-        status: 'STORED',
+        status: IMAGE_STATUS.SUCCESS,
       };
     });
     committed = true;
@@ -449,17 +538,28 @@ async function submitCapture(origin, payload) {
 
     // Broadcast only after the row is committed, so the desktop never renders a
     // photo that a rolled-back transaction did not actually store.
-    if (sessionId) bus.publish(sessionId, bus.EVENTS.IMAGE_CAPTURED, dto);
+    if (sessionId) bus.publish(sessionId, bus.EVENTS.CAPTURE_SUCCESS, dto);
     return dto;
   } catch (error) {
     // Nothing partial is left behind: a duplicate never wrote a file, and a
     // rolled-back insert has its file removed here. Once the transaction has
     // committed the file is referenced by a real row, so a later failure
     // (a heartbeat update, a broadcast) must never remove it.
-    if (stored && !committed) deleteStoredImage(stored.fileName);
+    if (stored && !committed) deleteStoredImage(stored.storageKey);
 
     if (error instanceof DuplicateCaptureError) {
-      if (sessionId) bus.publish(sessionId, bus.EVENTS.IMAGE_DUPLICATE, error.outcome);
+      await recordDuplicateAttempt({
+        imageId,
+        session,
+        origin,
+        context,
+        fingerprints,
+        mimeType,
+        fileSize: buffer.length,
+        capturedAt,
+        duplicateOf: error.outcome.originalImageId,
+      });
+      if (sessionId) bus.publish(sessionId, bus.EVENTS.CAPTURE_DUPLICATE, error.outcome);
       throw ApiError.duplicatePhoto(DUPLICATE_MESSAGE, error.outcome);
     }
 
@@ -467,8 +567,28 @@ async function submitCapture(origin, payload) {
     // same bytes at the same instant; whichever loses the race reports it as
     // the duplicate it is, rather than a 500.
     if (error && error.code === 'ER_DUP_ENTRY') {
-      const outcome = { ...context, reason: 'EXACT', distance: 0, message: DUPLICATE_MESSAGE };
-      if (sessionId) bus.publish(sessionId, bus.EVENTS.IMAGE_DUPLICATE, outcome);
+      const original = sessionId
+        ? await repo.findByContentHash(fingerprints.contentHash, { sessionId, scope, sinceDays: GLOBAL_SCOPE_DAYS })
+        : null;
+      await recordDuplicateAttempt({
+        imageId,
+        session,
+        origin,
+        context,
+        fingerprints,
+        mimeType,
+        fileSize: buffer.length,
+        capturedAt,
+        duplicateOf: original ? original.image_id : null,
+      });
+      const outcome = {
+        ...context,
+        reason: 'EXACT',
+        distance: 0,
+        originalImageId: original ? original.image_id : null,
+        message: DUPLICATE_MESSAGE,
+      };
+      if (sessionId) bus.publish(sessionId, bus.EVENTS.CAPTURE_DUPLICATE, outcome);
       throw ApiError.duplicatePhoto(DUPLICATE_MESSAGE, outcome);
     }
 
@@ -476,8 +596,30 @@ async function submitCapture(origin, payload) {
   }
 }
 
+/** Audit trail of rejected duplicates, for the session's operator. */
+async function listDuplicateAttempts(sessionId, user) {
+  const session = await repo.findSessionByPublicId(sessionId);
+  if (!session) throw ApiError.notFound('Capture session not found');
+  if (user && session.created_by !== user.id && user.roleCode !== 'A') {
+    throw ApiError.forbidden('This capture session belongs to another operator');
+  }
+
+  const rows = await repo.listDuplicateAttempts(sessionId);
+  return rows.map((row) => ({
+    imageId: row.image_id,
+    sessionId: row.session_id,
+    deviceId: row.device_id,
+    deviceType: row.device_type,
+    cameraType: row.camera_type,
+    imageHash: row.content_hash,
+    duplicateOf: row.duplicate_of,
+    attemptedAt: row.captured_at,
+  }));
+}
+
 module.exports = {
   DUPLICATE_MESSAGE,
+  listDuplicateAttempts,
   createSession,
   getSessionState,
   closeSession,
@@ -486,6 +628,7 @@ module.exports = {
   authenticateDevice,
   heartbeat,
   leaveSession,
+  markDeviceDisconnected,
   submitCapture,
   requireActiveSession,
   toImageDto,

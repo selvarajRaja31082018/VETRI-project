@@ -8,6 +8,7 @@ import type {
   CaptureSessionState,
   CapturedImage,
   DeviceType,
+  DuplicateAttempt,
 } from '../types';
 
 /**
@@ -126,16 +127,20 @@ deviceApi.interceptors.response.use(
   },
 );
 
-/** Exchange the QR join token for a device identity + device token. */
+/**
+ * Exchange the QR token for a device identity + device token.
+ *
+ * Only the token is sent: the server derives which session this is from the
+ * signature, so the page never needs to know (or be able to choose) a session id.
+ */
 async function joinSession(
-  sessionId: string,
-  joinToken: string,
+  token: string,
   deviceInfo: { deviceType: DeviceType; cameraType: CameraType; deviceLabel?: string },
 ) {
-  const { data } = await deviceApi.post<ApiSuccess<CaptureDeviceJoined>>(
-    `/capture/sessions/${sessionId}/devices`,
-    { joinToken, ...deviceInfo },
-  );
+  const { data } = await deviceApi.post<ApiSuccess<CaptureDeviceJoined>>('/capture/sessions/join', {
+    token,
+    ...deviceInfo,
+  });
   setDeviceToken(data.data.deviceToken);
   return data.data;
 }
@@ -165,7 +170,16 @@ async function leaveSession() {
   }
 }
 
+/** Audit trail of duplicates rejected in this session. */
+async function listDuplicateAttempts(sessionId: string) {
+  const { data } = await api.get<ApiSuccess<{ attempts: DuplicateAttempt[] }>>(
+    `/capture/sessions/${sessionId}/duplicates`,
+  );
+  return data.data.attempts;
+}
+
 export const captureService = {
+  listDuplicateAttempts,
   createSession,
   getSessionState,
   refreshJoinToken,

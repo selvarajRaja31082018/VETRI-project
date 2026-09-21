@@ -7,12 +7,13 @@ const db = require('../config/db');
 async function createSession(session) {
   const result = await db.query(
     `INSERT INTO capture_sessions
-       (session_id, created_by, purpose, status, max_devices, duplicate_scope, expires_at)
-     VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?)`,
+       (session_id, created_by, purpose, status, token_hash, max_devices, duplicate_scope, expires_at)
+     VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`,
     [
       session.sessionId,
       session.createdBy,
       session.purpose,
+      session.tokenHash,
       session.maxDevices,
       session.duplicateScope,
       session.expiresAt,
@@ -32,6 +33,11 @@ async function markSessionStatus(sessionId, status) {
       WHERE session_id = ?`,
     [status, status, sessionId],
   );
+}
+
+/** Rotate the stored join-token digest, invalidating every earlier QR code. */
+async function updateSessionTokenHash(sessionId, tokenHash) {
+  await db.query('UPDATE capture_sessions SET token_hash = ? WHERE session_id = ?', [tokenHash, sessionId]);
 }
 
 /** Sweep sessions whose TTL lapsed while nobody was looking. */
@@ -151,8 +157,8 @@ async function createImage(image, executor = db) {
        (image_id, capture_session_id, capture_device_id, session_id, device_id,
         device_type, camera_type, file_name, file_path, file_url, mime_type,
         file_size, width, height, content_hash, perceptual_hash, image_signature,
-        captured_at, captured_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        captured_at, captured_by, status, duplicate_of)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       image.imageId,
       image.captureSessionId,
@@ -173,6 +179,8 @@ async function createImage(image, executor = db) {
       image.signature,
       image.capturedAt,
       image.capturedBy,
+      image.status || 'SUCCESS',
+      image.duplicateOf || null,
     ],
   );
   return result.insertId;
@@ -180,7 +188,7 @@ async function createImage(image, executor = db) {
 
 const IMAGE_COLUMNS = `image_id, session_id, device_id, device_type, camera_type,
        file_url, file_path, mime_type, file_size, width, height,
-       content_hash, perceptual_hash, captured_at, status`;
+       content_hash, perceptual_hash, captured_at, status, duplicate_of`;
 
 /** Comparison rows carry the signature blob; everything else does not, so a
  *  listing never drags 1KB per image across the wire. */
@@ -191,7 +199,7 @@ function listImages(sessionId) {
   return db.query(
     `SELECT ${IMAGE_COLUMNS}
        FROM captured_images
-      WHERE session_id = ? AND status <> 'DISCARDED'
+      WHERE session_id = ? AND status = 'SUCCESS'
       ORDER BY captured_at ASC`,
     [sessionId],
   );
@@ -206,7 +214,7 @@ function findByContentHash(contentHash, { sessionId, scope, sinceDays }, executo
   if (scope === 'GLOBAL') {
     return executor.queryOne(
       `SELECT ${COMPARISON_COLUMNS} FROM captured_images
-        WHERE content_hash = ? AND status <> 'DISCARDED'
+        WHERE content_hash = ? AND status = 'SUCCESS'
           AND captured_at >= (NOW() - INTERVAL ? DAY)
         ORDER BY captured_at ASC LIMIT 1`,
       [contentHash, sinceDays],
@@ -214,7 +222,7 @@ function findByContentHash(contentHash, { sessionId, scope, sinceDays }, executo
   }
   return executor.queryOne(
     `SELECT ${COMPARISON_COLUMNS} FROM captured_images
-      WHERE content_hash = ? AND session_id = ? AND status <> 'DISCARDED'
+      WHERE content_hash = ? AND session_id = ? AND status = 'SUCCESS'
       ORDER BY captured_at ASC LIMIT 1`,
     [contentHash, sessionId],
   );
@@ -232,7 +240,7 @@ function listComparisonCandidates({ sessionId, scope, sinceDays, limit = 500 }, 
   if (scope === 'GLOBAL') {
     return executor.query(
       `SELECT ${COMPARISON_COLUMNS} FROM captured_images
-        WHERE image_signature IS NOT NULL AND status <> 'DISCARDED'
+        WHERE image_signature IS NOT NULL AND status = 'SUCCESS'
           AND captured_at >= (NOW() - INTERVAL ? DAY)
         ORDER BY captured_at DESC LIMIT ?`,
       [sinceDays, limit],
@@ -240,7 +248,7 @@ function listComparisonCandidates({ sessionId, scope, sinceDays, limit = 500 }, 
   }
   return executor.query(
     `SELECT ${COMPARISON_COLUMNS} FROM captured_images
-      WHERE image_signature IS NOT NULL AND session_id = ? AND status <> 'DISCARDED'
+      WHERE image_signature IS NOT NULL AND session_id = ? AND status = 'SUCCESS'
       ORDER BY captured_at DESC LIMIT ?`,
     [sessionId, limit],
   );
@@ -257,6 +265,18 @@ function lockSessionForCapture(sessionId, executor) {
   return executor.queryOne('SELECT id FROM capture_sessions WHERE session_id = ? FOR UPDATE', [sessionId]);
 }
 
+/** Audit trail: duplicate attempts recorded against a session, newest first. */
+function listDuplicateAttempts(sessionId, limit = 100) {
+  return db.query(
+    `SELECT image_id, session_id, device_id, device_type, camera_type,
+            content_hash, duplicate_of, captured_at
+       FROM captured_images
+      WHERE session_id = ? AND status = 'DUPLICATE'
+      ORDER BY captured_at DESC LIMIT ?`,
+    [sessionId, limit],
+  );
+}
+
 /** Flip an image to ATTACHED once it has been bound to a visitor record. */
 async function markImageStatus(imageId, status) {
   await db.query('UPDATE captured_images SET status = ? WHERE image_id = ?', [status, imageId]);
@@ -266,6 +286,7 @@ module.exports = {
   createSession,
   findSessionByPublicId,
   markSessionStatus,
+  updateSessionTokenHash,
   expireStaleSessions,
   createDevice,
   findDeviceByPublicId,
@@ -282,4 +303,5 @@ module.exports = {
   listComparisonCandidates,
   lockSessionForCapture,
   markImageStatus,
+  listDuplicateAttempts,
 };

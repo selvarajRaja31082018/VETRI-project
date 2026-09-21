@@ -21,14 +21,25 @@ const createSession = {
 
 const sessionParams = { params: sessionIdParam };
 
+/**
+ * Joining takes the QR token and nothing else - the session is derived from the
+ * signed token, so a client cannot ask to join a session it was not invited to.
+ * `token` is the documented field name; `joinToken` is accepted as an alias so
+ * the earlier client keeps working.
+ */
 const joinSession = {
-  params: sessionIdParam,
-  body: z.object({
-    joinToken: z.string().min(10, 'Join token is required'),
-    deviceType: deviceType.optional(),
-    cameraType: cameraType.optional(),
-    deviceLabel: z.string().max(150).optional(),
-  }),
+  body: z
+    .object({
+      token: z.string().min(10).optional(),
+      joinToken: z.string().min(10).optional(),
+      deviceType: deviceType.optional(),
+      cameraType: cameraType.optional(),
+      deviceLabel: z.string().max(150).optional(),
+    })
+    .refine((value) => value.token || value.joinToken, {
+      message: 'A connection token is required',
+      path: ['token'],
+    }),
 };
 
 const heartbeat = {
@@ -48,7 +59,9 @@ const heartbeat = {
  */
 const captureImage = {
   body: z.object({
-    image: z.string().min(1, 'Image data is required'),
+    // Optional because a multipart request carries the bytes in the file part
+    // instead; the controller rejects a request that has neither.
+    image: z.string().min(1).optional(),
     perceptualHash: z
       .string()
       .regex(/^[0-9a-fA-F]{16}$/, 'Perceptual hash must be 16 hex characters')

@@ -111,8 +111,16 @@ const ROLE_PERMISSIONS = {
  * stored photo so an image can always be traced back to the hardware that
  * produced it.
  */
-const DEVICE_TYPES = ['DESKTOP', 'MOBILE', 'TABLET', 'EXTERNAL', 'UNKNOWN'];
-const CAMERA_TYPES = ['BUILTIN_WEBCAM', 'MOBILE_FRONT', 'MOBILE_REAR', 'USB_EXTERNAL', 'UNKNOWN'];
+const DEVICE_TYPES = ['DESKTOP', 'MOBILE', 'TABLET', 'EXTERNAL_USB', 'UNKNOWN'];
+const CAMERA_TYPES = ['DESKTOP_WEBCAM', 'MOBILE_FRONT', 'MOBILE_REAR', 'USB_CAMERA', 'UNKNOWN'];
+
+/** Lifecycle of a stored image row. DUPLICATE rows are audit records of a
+ *  rejected capture - they are never returned as successful captures. */
+const IMAGE_STATUS = {
+  SUCCESS: 'SUCCESS',
+  DUPLICATE: 'DUPLICATE',
+  FAILED: 'FAILED',
+};
 
 const CAPTURE_SESSION_STATUS = {
   ACTIVE: 'ACTIVE',
@@ -175,4 +183,5 @@ module.exports = {
   CAPTURE_DEVICE_STATUS,
   CAPTURE_TOKEN_SCOPES,
   CAPTURE_DEFAULTS,
+  IMAGE_STATUS,
 };

@@ -60,19 +60,14 @@ const streamSession = asyncHandler(async (req, res) => {
 /* ------------------------------------------------------------------- devices */
 
 const joinSession = asyncHandler(async (req, res) => {
-  const { joinToken, ...deviceInfo } = req.body;
-  const result = await captureService.joinSession(
-    req.params.sessionId,
-    joinToken,
-    deviceInfo,
-    clientContext(req),
-  );
+  const { token, joinToken, ...deviceInfo } = req.body;
+  const result = await captureService.joinSession(token || joinToken, deviceInfo, clientContext(req));
 
   await writeAudit(null, { ...clientContext(req), userId: null }, {
     action: 'CAPTURE_DEVICE_JOINED',
     entityType: 'capture_device',
     newValue: {
-      sessionId: req.params.sessionId,
+      sessionId: result.sessionId,
       deviceId: result.device.deviceId,
       deviceType: result.device.deviceType,
     },
@@ -112,7 +107,7 @@ const getDeviceSession = asyncHandler(async (req, res) => {
 const captureFromDevice = asyncHandler(async (req, res) => {
   const image = await captureService.submitCapture(
     { kind: 'device', device: req.captureDevice, session: req.captureSession },
-    { ...req.body, publicBaseUrl: publicBaseUrl(req) },
+    { ...req.body, file: req.file, publicBaseUrl: publicBaseUrl(req) },
   );
   created(res, image, 'Photo captured');
 });
@@ -134,7 +129,7 @@ const captureFromDesktop = asyncHandler(async (req, res) => {
 
   const image = await captureService.submitCapture(
     { kind: 'user', user: req.user, session },
-    { ...req.body, publicBaseUrl: publicBaseUrl(req) },
+    { ...req.body, file: req.file, publicBaseUrl: publicBaseUrl(req) },
   );
 
   await writeAudit(null, auditContext(req), {
@@ -146,7 +141,14 @@ const captureFromDesktop = asyncHandler(async (req, res) => {
   created(res, image, 'Photo captured');
 });
 
+/** Audit trail of rejected duplicates for a session. */
+const listDuplicateAttempts = asyncHandler(async (req, res) => {
+  const attempts = await captureService.listDuplicateAttempts(req.params.sessionId, req.user);
+  success(res, { attempts });
+});
+
 module.exports = {
+  listDuplicateAttempts,
   createSession,
   getSession,
   closeSession,

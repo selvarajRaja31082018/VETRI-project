@@ -65,6 +65,9 @@ export default function App() {
               session. Authority comes from the short-lived, session-scoped join
               token in the URL, which the page exchanges for a device token.
             */}
+            <Route path="/mobile-camera" element={<MobileCapturePage />} />
+            {/* Earlier QR codes encoded the session in the path. Kept so a code
+                already on screen keeps working; the page reads only `?t=`. */}
             <Route path="/capture/:sessionId" element={<MobileCapturePage />} />
 
             <Route element={<ProtectedRoute />}>

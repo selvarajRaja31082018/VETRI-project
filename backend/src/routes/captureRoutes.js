@@ -2,6 +2,7 @@
 
 const { Router } = require('express');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 
 const controller = require('../controllers/captureController');
 const { validate } = require('../middleware/validate');
@@ -12,6 +13,27 @@ const validators = require('../validators/captureValidators');
 const { PERMISSIONS } = require('../utils/constants');
 
 const router = Router();
+
+/**
+ * Captures may arrive as multipart/form-data (the documented form) or as a
+ * base64 data URL in JSON (what the browser canvas produces directly). Files
+ * are held in memory: they are hashed and duplicate-checked before anything is
+ * written, so spooling a rejected photo to disk first would be wasted work.
+ *
+ * The MIME type is re-derived from the bytes downstream; this filter is only a
+ * cheap first pass, and the client's filename is never used.
+ */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+  },
+});
+
+/** Accept a single `image` part, but only when the request is multipart. */
+const maybeMultipart = (req, res, next) =>
+  (req.is('multipart/form-data') ? upload.single('image') : (_q, _s, done) => done())(req, res, next);
 
 /**
  * The join endpoint is the only unauthenticated surface here: it is reachable
@@ -63,8 +85,17 @@ router.post(
   authenticate,
   requirePermission(PERMISSIONS.VISITOR_CREATE),
   captureLimiter,
+  maybeMultipart,
   validate(validators.captureImage),
   controller.captureFromDesktop,
+);
+
+// Audit trail of rejected duplicates for a session.
+router.get(
+  '/sessions/:sessionId/duplicates',
+  authenticate,
+  validate(validators.sessionParams),
+  controller.listDuplicateAttempts,
 );
 
 /* -------------------------------------------------- real-time (stream token) */
@@ -80,12 +111,15 @@ router.get(
 
 /* ----------------------------------------------- joined devices (QR / mobile) */
 
-router.post(
-  '/sessions/:sessionId/devices',
-  joinLimiter,
-  validate(validators.joinSession),
-  controller.joinSession,
-);
+/**
+ * A scanned device joins using only the token from the QR code - the session is
+ * derived from the signed token server-side.
+ */
+router.post('/sessions/join', joinLimiter, validate(validators.joinSession), controller.joinSession);
+
+// Earlier path that named the session explicitly. Kept so an already-open QR
+// code keeps working; the session still comes from the token, not the URL.
+router.post('/sessions/:sessionId/devices', joinLimiter, validate(validators.joinSession), controller.joinSession);
 
 router.get('/devices/me', authenticateDevice, controller.getDeviceSession);
 
@@ -97,6 +131,7 @@ router.post(
   '/devices/me/images',
   authenticateDevice,
   captureLimiter,
+  maybeMultipart,
   validate(validators.captureImage),
   controller.captureFromDevice,
 );

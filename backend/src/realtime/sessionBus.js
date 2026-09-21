@@ -23,14 +23,21 @@ emitter.setMaxListeners(0);
 /** Live subscriber counts, keyed by sessionId - used for connected/disconnected UI. */
 const subscriberCounts = new Map();
 
+/**
+ * Domain events. One vocabulary, emitted over every transport (Socket.IO and
+ * SSE) so a subscriber sees the same names whichever it connects with.
+ */
 const EVENTS = {
-  DEVICE_JOINED: 'device.joined',
-  DEVICE_LEFT: 'device.left',
-  DEVICE_STATE: 'device.state',
-  IMAGE_CAPTURED: 'image.captured',
-  IMAGE_DUPLICATE: 'image.duplicate',
-  CAPTURE_FAILED: 'capture.failed',
-  SESSION_CLOSED: 'session.closed',
+  DEVICE_CONNECTED: 'device_connected',
+  DEVICE_DISCONNECTED: 'device_disconnected',
+  /** A device changed camera, reconnected, or went idle. */
+  DEVICE_STATE: 'device_state',
+  /** Emitted by the device the moment the shutter fires, before the upload. */
+  CAPTURE_STARTED: 'capture_started',
+  CAPTURE_SUCCESS: 'capture_success',
+  CAPTURE_DUPLICATE: 'capture_duplicate',
+  CAPTURE_FAILED: 'capture_failed',
+  SESSION_CLOSED: 'session_closed',
 };
 
 function channel(sessionId) {

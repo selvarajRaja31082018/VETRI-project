@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/Button';
 import { describeCameraError } from '../../utils/cameraErrors';
 import { captureService } from '../../services/captureService';
+import { connectAsDevice, CAPTURE_EVENTS } from '../../services/socketService';
 import { ApiClientError, isDuplicatePhotoError } from '../../services/api';
 import { getErrorMessage } from '../../utils/errors';
 import { computePerceptualHash } from '../../utils/imageHash';
 import { classifyCameraFromStream, describeDevice, detectDeviceType } from '../../utils/deviceInfo';
+import type { Socket } from 'socket.io-client';
 import type { CameraType, CaptureStatus } from '../../types';
 import './MobileCapturePage.css';
 
@@ -36,13 +38,15 @@ const STATUS_COPY: Record<CaptureStatus, { label: string; tone: string }> = {
  * differ, so a phone screen can be used one-handed.
  */
 export function MobileCapturePage() {
-  const { sessionId = '' } = useParams();
   const [searchParams] = useSearchParams();
+  // The QR carries only the token - the server resolves which session it opens.
   const joinToken = searchParams.get('t') || '';
+
+  const [sessionId, setSessionId] = useState('');
 
   // A malformed link is knowable at first render, so it is the initial state
   // rather than something an effect corrects a moment later.
-  const linkIsComplete = Boolean(sessionId && joinToken);
+  const linkIsComplete = Boolean(joinToken);
   const [status, setStatus] = useState<CaptureStatus>(linkIsComplete ? 'CONNECTING' : 'ERROR');
   const [message, setMessage] = useState<string | null>(
     linkIsComplete ? null : 'This capture link is incomplete. Scan the QR code on the desktop again.',
@@ -56,6 +60,8 @@ export function MobileCapturePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const joinedRef = useRef(false);
+  const socketRef = useRef<Socket | null>(null);
+  const [deviceToken, setDeviceToken] = useState<string | null>(null);
   const [deviceType] = useState(detectDeviceType);
 
   const stopStream = useCallback(() => {
@@ -107,19 +113,49 @@ export function MobileCapturePage() {
 
     (async () => {
       try {
-        const joined = await captureService.joinSession(sessionId, joinToken, {
+        const joined = await captureService.joinSession(joinToken, {
           deviceType,
           cameraType: 'UNKNOWN',
           deviceLabel: describeDevice(deviceType),
         });
+        setSessionId(joined.sessionId);
         setCameraType(joined.device.cameraType);
+        setDeviceToken(joined.deviceToken);
         await startCamera('environment');
       } catch (err) {
         setStatus('ERROR');
         setMessage(getErrorMessage(err));
       }
     })();
-  }, [sessionId, joinToken, deviceType, startCamera, linkIsComplete]);
+  }, [joinToken, deviceType, startCamera, linkIsComplete]);
+
+  /**
+   * Device socket. Its only outbound message is `capture_started`, which is
+   * what lets the desktop show this phone as "Capturing" while the upload is
+   * still in flight. Losing the socket is also the fastest signal the desktop
+   * gets that this device has gone away.
+   */
+  useEffect(() => {
+    if (!deviceToken) return;
+
+    const socket = connectAsDevice(deviceToken);
+    socketRef.current = socket;
+
+    socket.on('disconnect', () => {
+      setStatus((current) => (current === 'ERROR' ? current : 'DISCONNECTED'));
+      setMessage('Lost connection to the desktop. Reconnecting…');
+    });
+    socket.on('connect', () => {
+      setStatus((current) => (current === 'DISCONNECTED' ? 'CONNECTED' : current));
+      setMessage((current) => (current === 'Lost connection to the desktop. Reconnecting…' ? null : current));
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [deviceToken]);
 
   /** Heartbeat so the desktop can show this phone as connected, and so a
    *  dropped network surfaces as "Disconnected" rather than silently stalling. */
@@ -165,6 +201,10 @@ export function MobileCapturePage() {
     }
 
     setStatus('CAPTURING');
+    // Tell the desktop immediately - before the encode and upload - so its
+    // device list shows this phone as "Capturing" without waiting.
+    socketRef.current?.emit(CAPTURE_EVENTS.CAPTURE_STARTED);
+
     canvas.width = side;
     canvas.height = side;
     const ctx = canvas.getContext('2d');

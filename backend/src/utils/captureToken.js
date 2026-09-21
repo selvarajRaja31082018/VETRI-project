@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const ApiError = require('./ApiError');
@@ -51,7 +52,18 @@ const signStreamToken = (sessionId, userId, ttlSeconds) =>
 
 const verifyStreamToken = (token) => verify(token, CAPTURE_TOKEN_SCOPES.STREAM);
 
+/**
+ * SHA-256 of a token, for storage. The raw join token is never persisted: the
+ * server keeps only this digest and compares it on join, so a leaked database
+ * row cannot be replayed as a token, and rotating the QR (which overwrites the
+ * digest) instantly invalidates every token issued before it.
+ */
+function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
 module.exports = {
+  hashToken,
   signJoinToken,
   verifyJoinToken,
   signDeviceToken,

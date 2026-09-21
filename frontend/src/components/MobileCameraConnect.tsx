@@ -5,7 +5,8 @@ import { Badge } from './StatusBadge';
 import { Modal } from './Modal';
 import { LoadingSpinner } from './LoadingSpinner';
 import type { useCaptureSession } from '../hooks/useCaptureSession';
-import type { CameraType, CaptureDevice, CapturedImage, DeviceType } from '../types';
+import type { CameraType, CapturedImage, DeviceType } from '../types';
+import type { TrackedDevice } from '../hooks/useCaptureSession';
 import './MobileCameraConnect.css';
 
 type CaptureSessionApi = ReturnType<typeof useCaptureSession>;
@@ -22,15 +23,15 @@ const DEVICE_LABELS: Record<DeviceType, string> = {
   DESKTOP: 'Desktop',
   MOBILE: 'Mobile',
   TABLET: 'Tablet',
-  EXTERNAL: 'External',
+  EXTERNAL_USB: 'USB camera',
   UNKNOWN: 'Unknown device',
 };
 
 const CAMERA_LABELS: Record<CameraType, string> = {
-  BUILTIN_WEBCAM: 'Built-in webcam',
+  DESKTOP_WEBCAM: 'Desktop webcam',
   MOBILE_FRONT: 'Front camera',
   MOBILE_REAR: 'Rear camera',
-  USB_EXTERNAL: 'USB camera',
+  USB_CAMERA: 'USB camera',
   UNKNOWN: 'Camera',
 };
 
@@ -77,19 +78,29 @@ function QrPanel({ joinUrl }: { joinUrl: string }) {
   );
 }
 
-function DeviceRow({ device }: { device: CaptureDevice }) {
+function DeviceRow({ device, index }: { device: TrackedDevice; index: number }) {
   const connected = device.status === 'CONNECTED';
+  // "Capturing" is driven by the device's own capture_started event, so the
+  // operator sees the shutter fire rather than waiting for the upload.
+  const state = !connected ? 'Disconnected' : device.isCapturing ? 'Capturing' : 'Connected';
+  const tone = !connected ? 'neutral' : device.isCapturing ? 'info' : 'success';
+
   return (
     <li className="mobile-connect-device">
-      <span className={`mobile-connect-dot ${connected ? 'is-connected' : 'is-disconnected'}`} aria-hidden="true" />
+      <span
+        className={`mobile-connect-dot ${connected ? 'is-connected' : 'is-disconnected'}`}
+        aria-hidden="true"
+      />
       <div>
-        <strong>{DEVICE_LABELS[device.deviceType]}</strong>
+        <strong>
+          {DEVICE_LABELS[device.deviceType]} {index + 1}
+        </strong>
         <span className="mobile-connect-device-meta">
           {CAMERA_LABELS[device.cameraType]}
           {device.deviceLabel ? ` · ${device.deviceLabel}` : ''}
         </span>
       </div>
-      <Badge tone={connected ? 'success' : 'neutral'}>{connected ? 'Connected' : 'Disconnected'}</Badge>
+      <Badge tone={tone}>{state}</Badge>
     </li>
   );
 }
@@ -114,7 +125,9 @@ export function MobileCameraConnect({ capture, onUsePhoto, duplicateMessage }: M
     setIsOpen(false);
   }
 
-  const mobileImages = images.filter((image) => image.deviceType !== 'DESKTOP');
+  // Every camera type's captures, newest last, so the operator sees one
+  // chronological "recent captures" list rather than a mobile-only view.
+  const recentImages = images.slice(-12);
 
   return (
     <>
@@ -179,23 +192,23 @@ export function MobileCameraConnect({ capture, onUsePhoto, duplicateMessage }: M
                 <p className="mobile-connect-empty">Waiting for a device to scan the code…</p>
               ) : (
                 <ul className="mobile-connect-devices">
-                  {devices.map((device) => (
-                    <DeviceRow key={device.deviceId} device={device} />
+                  {devices.map((device, index) => (
+                    <DeviceRow key={device.deviceId} device={device} index={index} />
                   ))}
                 </ul>
               )}
 
-              <h3 className="mobile-connect-heading">Photos received</h3>
-              {mobileImages.length === 0 ? (
+              <h3 className="mobile-connect-heading">Recent captures</h3>
+              {recentImages.length === 0 ? (
                 <p className="mobile-connect-empty">Photos captured on a phone appear here instantly.</p>
               ) : (
                 <ul className="mobile-connect-photos">
-                  {mobileImages.map((image) => (
+                  {recentImages.map((image) => (
                     <li key={image.imageId}>
                       <img src={image.url} alt={`Captured on ${DEVICE_LABELS[image.deviceType]}`} />
                       <div>
                         <span className="mobile-connect-device-meta">
-                          {CAMERA_LABELS[image.cameraType]} ·{' '}
+                          {DEVICE_LABELS[image.deviceType]} · {CAMERA_LABELS[image.cameraType]} ·{' '}
                           {new Date(image.capturedAt).toLocaleTimeString()}
                         </span>
                         <Button
