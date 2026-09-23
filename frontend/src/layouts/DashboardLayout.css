@@ -1,128 +1,247 @@
+/* ===========================================================================
+   Application shell: sidebar + topbar + content
+   =========================================================================== */
+
 .app-shell {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
+/* ---------------------------------------------------------------- sidebar */
+
 .app-sidebar {
-  width: 260px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
-  background: var(--color-primary);
+  /* A slight vertical gradient keeps a large flat burgundy panel from reading
+     as a solid block, without introducing a second brand colour. */
+  background: linear-gradient(180deg, var(--sidebar-bg-accent) 0%, var(--sidebar-bg) 55%, #560a19 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
-  padding: 1.25rem 1rem;
+  padding: var(--space-4) var(--space-3) var(--space-3);
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
+  z-index: 60;
 }
 
 .app-brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0.5rem 1.5rem;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-5);
 }
 
 .app-brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.15);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
-.app-brand strong {
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
+.app-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-brand-text strong {
+  font-size: var(--text-md);
+  letter-spacing: 0.04em;
+  color: #fff;
+  line-height: 1.2;
 }
 
 .app-brand-sub {
-  font-size: 0.7rem;
-  opacity: 0.75;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.62);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.app-drawer-close {
+  display: none;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.app-drawer-close:hover {
+  background: var(--sidebar-item-hover-bg);
+  color: #fff;
+}
+
+/* ------------------------------------------------------------- navigation */
 
 .app-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 2px;
   flex: 1;
   overflow-y: auto;
+  /* Hide the scrollbar track against the burgundy; the list rarely overflows. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.app-nav-heading {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.42);
+  padding: 0 var(--space-3) var(--space-2);
 }
 
 .app-nav-link {
-  color: rgba(255, 255, 255, 0.85);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--sidebar-item);
   text-decoration: none;
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.88rem;
+  padding: 0.58rem var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
   font-weight: 500;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.app-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast);
+}
+
+.app-nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--sidebar-item-hover-bg);
+  color: #fff;
+}
+
+.app-nav-link:hover .app-nav-icon {
+  opacity: 1;
 }
 
 .app-nav-link.is-active {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--sidebar-item-active-bg);
   color: #fff;
-  font-weight: 700;
+  font-weight: 600;
 }
 
+.app-nav-link.is-active .app-nav-icon {
+  opacity: 1;
+}
+
+/* Small indicator bar on the active item - reads as "you are here" at a glance
+   without the old full-width block highlight. */
+.app-nav-link.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: #fff;
+}
+
+/* ------------------------------------------------------------ user footer */
+
 .app-sidebar-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  padding-top: 1rem;
-  margin-top: 1rem;
+  border-top: 1px solid var(--sidebar-border);
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .app-user {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0 0.25rem;
-  margin-bottom: 0.75rem;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  margin-bottom: var(--space-2);
+  min-width: 0;
 }
 
 .app-user-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.app-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .app-user-name {
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-user-role {
-  font-size: 0.72rem;
-  opacity: 0.75;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
 }
 
+/* Secondary by design: signing out is not the main action in this footer. */
 .app-signout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   width: 100%;
-  padding: 0.55rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.45rem var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
   background: transparent;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .app-signout:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--sidebar-item-hover-bg);
+  color: #fff;
 }
+
+/* ----------------------------------------------------------------- topbar */
 
 .app-main {
   flex: 1;
@@ -134,61 +253,228 @@
 .app-topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.9rem 1.5rem;
-  background: var(--color-surface);
+  gap: var(--space-3);
+  height: var(--topbar-height);
+  padding: 0 var(--space-6);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 40;
 }
 
 .app-nav-toggle {
   display: none;
-  border: none;
-  background: transparent;
-  font-size: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.app-topbar-status {
+.app-nav-toggle:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.app-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  min-width: 0;
+}
+
+.app-breadcrumb-root {
+  color: var(--color-text-subtle);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-breadcrumb-sep {
+  color: var(--color-text-subtle);
+  flex-shrink: 0;
+}
+
+.app-breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-topbar-spacer {
   flex: 1;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
+.app-workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-workspace-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--color-success);
+  flex-shrink: 0;
 }
+
+.app-topbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- content */
 
 .app-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: var(--space-6);
+  /* Long forms end in a sticky action bar; this keeps the last section clear
+     of it when the page is scrolled to the bottom. */
+  padding-bottom: var(--space-10);
 }
 
-@media (max-width: 900px) {
+.app-scrim {
+  display: none;
+}
+
+/* ===========================================================================
+   Responsive
+   =========================================================================== */
+
+/* Tablet: icon-only rail. The labels collapse, the layout does not reflow. */
+@media (max-width: 1100px) and (min-width: 861px) {
+  .app-sidebar {
+    width: var(--sidebar-width-compact);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    align-items: center;
+  }
+  .app-brand {
+    padding: var(--space-2) 0 var(--space-5);
+    justify-content: center;
+  }
+  .app-brand-text,
+  .app-nav-heading,
+  .app-nav-label,
+  .app-user-text {
+    display: none;
+  }
+  .app-nav {
+    width: 100%;
+    align-items: center;
+  }
+  .app-nav-link {
+    justify-content: center;
+    padding: 0.6rem;
+    width: 100%;
+  }
+  .app-nav-link.is-active::before {
+    left: -8px;
+  }
+  .app-user {
+    justify-content: center;
+    padding: 0;
+  }
+  .app-signout {
+    justify-content: center;
+  }
+  .app-signout span {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-content {
+    padding: var(--space-5);
+    padding-bottom: var(--space-10);
+  }
+  .app-topbar {
+    padding: 0 var(--space-5);
+  }
+}
+
+/* Mobile: off-canvas drawer. */
+@media (max-width: 860px) {
   .app-sidebar {
     position: fixed;
     left: 0;
     top: 0;
+    width: min(290px, 86vw);
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    z-index: 100;
-    box-shadow: var(--shadow-md);
+    transition: transform var(--transition);
+    z-index: 110;
+    box-shadow: var(--shadow-lg);
   }
   .app-sidebar.is-open {
     transform: translateX(0);
   }
+  .app-drawer-close {
+    display: inline-flex;
+  }
   .app-nav-toggle {
     display: inline-flex;
+  }
+  .app-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(34, 26, 28, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition);
+    z-index: 100;
+  }
+  .app-scrim.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* The workspace label is the first thing to go - the breadcrumb already says
+     where you are, and the notification bell must stay reachable. */
+  .app-workspace {
+    display: none;
+  }
+  .app-topbar {
+    padding: 0 var(--space-4);
+    gap: var(--space-2);
+  }
+  .app-content {
+    padding: var(--space-4);
+    padding-bottom: var(--space-8);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-breadcrumb-root,
+  .app-breadcrumb-sep {
+    display: none;
+  }
+  .app-topbar-avatar {
+    display: none;
   }
 }

@@ -12,9 +12,9 @@ export function EmptyState({
 }) {
   return (
     <div className="state-block state-empty">
-      <div className="state-icon" aria-hidden="true">
+      <span className="state-icon" aria-hidden="true">
         📭
-      </div>
+      </span>
       <h3>{title}</h3>
       {description && <p>{description}</p>}
       {action}

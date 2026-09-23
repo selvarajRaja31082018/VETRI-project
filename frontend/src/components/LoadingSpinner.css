@@ -1,24 +1,138 @@
+/* ===========================================================================
+   Loading states
+   =========================================================================== */
+
 .loading-state {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  padding: 2.5rem 1rem;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
+}
+
+.loading-state.is-inline {
+  padding: 0;
+  justify-content: flex-start;
 }
 
 .loading-spinner {
-  width: 20px;
-  height: 20px;
   border-radius: 50%;
-  border: 3px solid var(--color-border);
+  border-style: solid;
+  border-color: var(--color-border);
   border-top-color: var(--color-primary);
   animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.loading-spinner-md {
+  width: 22px;
+  height: 22px;
+  border-width: 2.5px;
+}
+
+.loading-spinner-lg {
+  width: 34px;
+  height: 34px;
+  border-width: 3px;
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* --- Overlay ------------------------------------------------------------ */
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Translucent rather than opaque: the operator keeps sight of the form they
+     just submitted. */
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(2px);
+  z-index: 20;
+  animation: overlay-in 150ms var(--ease) both;
+}
+
+.loading-overlay.is-fullscreen {
+  position: fixed;
+  z-index: 200;
+}
+
+.loading-overlay-panel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Skeleton ----------------------------------------------------------- */
+
+.skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-bg) 25%,
+    var(--color-surface-hover) 37%,
+    var(--color-neutral-bg) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0 50%;
+  }
+}
+
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--color-neutral-bg);
   }
 }

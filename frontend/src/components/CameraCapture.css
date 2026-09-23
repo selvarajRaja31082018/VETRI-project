@@ -1,115 +1,339 @@
-.camera-capture {
+/* ===========================================================================
+   Camera verification panel
+   ---------------------------------------------------------------------------
+   A rectangular preview, not a circular avatar well: the operator needs to see
+   the framing they are actually capturing, and a 4:3 stage matches what the
+   webcam produces.
+   =========================================================================== */
+
+.camera-panel {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 1rem;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  padding: var(--space-3);
+  min-width: 0;
 }
 
-.camera-capture-frame {
+.camera-panel-large {
+  max-width: 420px;
+}
+
+.camera-panel-small {
+  max-width: 200px;
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+.camera-panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.camera-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.camera-panel-small .camera-panel-title {
+  font-size: var(--text-xs);
+}
+
+/* --- Stage -------------------------------------------------------------- */
+
+.camera-stage {
   position: relative;
-  border-radius: 50%;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--color-primary-tint);
-  border: 3px solid var(--color-primary);
+  background: #1d1618;
+  border: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: border-color var(--transition);
 }
 
-.camera-capture-large .camera-capture-frame {
-  width: 220px;
-  height: 220px;
+.camera-stage.is-live {
+  border-color: var(--color-primary);
 }
 
-.camera-capture-small .camera-capture-frame {
-  width: 96px;
-  height: 96px;
-  border-width: 2px;
-}
-
-.camera-capture-video,
-.camera-capture-preview {
+.camera-video,
+.camera-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Mirrored so the operator's movements match the preview, as every video-call
+     app does. The captured canvas is unmirrored - only the preview flips. */
   transform: scaleX(-1);
+  animation: camera-fade 200ms var(--ease) both;
 }
 
-.camera-capture-placeholder {
-  font-size: 2.5rem;
-  color: var(--color-primary);
-  opacity: 0.6;
+@keyframes camera-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.camera-capture-small .camera-capture-placeholder {
-  font-size: 1.5rem;
-}
+/* --- Framing guides ----------------------------------------------------- */
 
-.camera-capture-placeholder-error {
-  opacity: 1;
-}
-
-.camera-capture-overlay {
+.camera-guides {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
+  pointer-events: none;
+}
+
+.camera-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.camera-corner-tl {
+  top: 10px;
+  left: 10px;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 4px 0 0 0;
+}
+.camera-corner-tr {
+  top: 10px;
+  right: 10px;
+  border-left: none;
+  border-bottom: none;
+  border-radius: 0 4px 0 0;
+}
+.camera-corner-bl {
+  bottom: 10px;
+  left: 10px;
+  border-right: none;
+  border-top: none;
+  border-radius: 0 0 0 4px;
+}
+.camera-corner-br {
+  bottom: 10px;
+  right: 10px;
+  border-left: none;
+  border-top: none;
+  border-radius: 0 0 4px 0;
+}
+
+/* Soft oval hint for where the face should sit. Intentionally faint - it is a
+   suggestion, not a mask. */
+.camera-face-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 42%;
+  height: 66%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+
+.camera-panel-small .camera-corner,
+.camera-panel-small .camera-face-guide {
+  display: none;
+}
+
+/* --- Placeholders / scrims ---------------------------------------------- */
+
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  gap: var(--space-2);
+  text-align: center;
+  padding: var(--space-4);
+  color: rgba(255, 255, 255, 0.82);
+  background: #1d1618;
+}
+
+.camera-placeholder strong {
+  font-size: var(--text-base);
   font-weight: 600;
-  text-align: center;
+  color: #fff;
 }
 
-.camera-capture-label {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  text-align: center;
-  max-width: 220px;
+.camera-placeholder span:not(.camera-placeholder-icon):not(.camera-loader) {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 30ch;
 }
 
-.camera-capture-actions {
-  display: flex;
-  gap: 0.5rem;
+.camera-panel-small .camera-placeholder strong {
+  font-size: var(--text-xs);
 }
 
-.camera-capture-placeholder-duplicate {
-  opacity: 1;
-  color: var(--color-warning, #b45309);
-}
-
-/* Camera picker: only rendered when more than one video input is attached,
-   so a single-webcam desktop looks exactly as it did before. */
-.camera-capture-select {
-  display: flex;
+.camera-placeholder-icon {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  max-width: 100%;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.camera-capture-select-label {
+.camera-panel-small .camera-placeholder-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.camera-placeholder-icon.is-warning {
+  background: rgba(181, 117, 10, 0.22);
+  color: #fcd34d;
+}
+
+.camera-placeholder-icon.is-error {
+  background: rgba(179, 38, 30, 0.22);
+  color: #fca5a5;
+}
+
+.camera-scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: rgba(29, 22, 24, 0.72);
+  backdrop-filter: blur(2px);
+  color: #fff;
+  font-size: var(--text-sm);
+}
+
+/* --- Loader ------------------------------------------------------------- */
+
+.camera-loader {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+
+.camera-loader-light {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+}
+
+/* --- Captured badge ----------------------------------------------------- */
+
+.camera-captured-badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: rgba(26, 127, 78, 0.92);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  animation: enter-up 180ms var(--ease) both;
+}
+
+.camera-panel-small .camera-captured-badge {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+}
+
+/* --- Device selector ---------------------------------------------------- */
+
+.camera-select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.camera-select-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--color-text-muted);
-  font-weight: 600;
-  white-space: nowrap;
 }
 
-.camera-capture-select select {
-  font: inherit;
-  padding: 0.25rem 0.4rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  max-width: 190px;
+.camera-select .field-control {
+  height: 38px;
+  font-size: var(--text-sm);
 }
 
-.camera-capture-duplicate-message {
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-align: center;
-  max-width: 240px;
-  color: var(--color-warning, #b45309);
+/* --- Messages ----------------------------------------------------------- */
+
+.camera-message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.camera-message svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.camera-message.is-error {
+  color: var(--color-danger);
+}
+
+.camera-message.is-warning {
+  color: var(--color-warning);
+}
+
+/* --- Actions ------------------------------------------------------------ */
+
+.camera-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.camera-panel-large .camera-actions .btn {
+  flex: 1;
+}
+
+/* The shutter is the one action that should read as primary in this panel. */
+.camera-shutter {
+  font-weight: 700;
+}
+
+.camera-consent {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .camera-panel-large {
+    max-width: 100%;
+  }
+  .camera-panel-small {
+    max-width: 100%;
+  }
 }

@@ -7,6 +7,7 @@ import { computePerceptualHash } from '../utils/imageHash';
 import { describeCameraError } from '../utils/cameraErrors';
 import { classifyCameraFromStream, detectDeviceType, listVideoInputs, type VideoInput } from '../utils/deviceInfo';
 import { Button } from './Button';
+import { IconCamera, IconRefresh, IconCheck, IconAlert } from './icons';
 import './CameraCapture.css';
 
 type Mode = 'idle' | 'starting' | 'streaming' | 'uploading' | 'captured' | 'duplicate' | 'error';
@@ -242,41 +243,119 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
   const showVideo = mode === 'streaming';
   const showPreview = (mode === 'captured' || mode === 'uploading') && !!preview;
   const showSelector = videoInputs.length > 1 && mode !== 'uploading';
+  const isBusy = mode === 'starting' || mode === 'uploading';
+
+  // One status chip drives the panel header, so the operator always knows what
+  // the camera is doing without reading the buttons.
+  const statusTone =
+    mode === 'streaming' ? 'success' : mode === 'error' ? 'danger' : mode === 'duplicate' ? 'warning' : mode === 'captured' ? 'success' : 'info';
+  const statusText =
+    mode === 'idle'
+      ? 'Ready'
+      : mode === 'starting'
+        ? 'Preparing camera'
+        : mode === 'streaming'
+          ? 'Live'
+          : mode === 'uploading'
+            ? 'Uploading'
+            : mode === 'captured'
+              ? 'Captured'
+              : mode === 'duplicate'
+                ? 'Duplicate'
+                : 'Camera error';
 
   return (
-    <div className={`camera-capture camera-capture-${size}`}>
-      <div className="camera-capture-frame">
+    <div className={`camera-panel camera-panel-${size}`}>
+      <div className="camera-panel-top">
+        <span className="camera-panel-title">
+          <IconCamera size={size === 'small' ? 14 : 16} />
+          {size === 'small' ? 'Photo' : 'Camera preview'}
+        </span>
+        <span className={`status-pill status-pill-${statusTone} ${mode === 'streaming' ? 'status-pill-live' : ''}`.trim()}>
+          {statusText}
+        </span>
+      </div>
+
+      <div className={`camera-stage ${showVideo ? 'is-live' : ''}`.trim()}>
         <video
           ref={videoRef}
           muted
           playsInline
-          className="camera-capture-video"
+          className="camera-video"
           hidden={!showVideo}
         />
-        {showPreview && <img src={preview} alt="Captured identity" className="camera-capture-preview" />}
-        {mode === 'uploading' && <div className="camera-capture-overlay">Uploading...</div>}
-        {(mode === 'idle' || mode === 'starting') && (
-          <div className="camera-capture-placeholder" aria-hidden="true">
-            📷
+
+        {showPreview && <img src={preview} alt="Captured identity" className="camera-preview" />}
+
+        {/* Framing guides, shown only while the feed is live. */}
+        {showVideo && (
+          <div className="camera-guides" aria-hidden="true">
+            <span className="camera-corner camera-corner-tl" />
+            <span className="camera-corner camera-corner-tr" />
+            <span className="camera-corner camera-corner-bl" />
+            <span className="camera-corner camera-corner-br" />
+            <span className="camera-face-guide" />
           </div>
         )}
+
+        {mode === 'starting' && (
+          <div className="camera-placeholder" role="status">
+            <span className="camera-loader" aria-hidden="true" />
+            <strong>Preparing camera…</strong>
+            <span>Allow access if your browser asks.</span>
+          </div>
+        )}
+
+        {mode === 'uploading' && (
+          <div className="camera-scrim" role="status">
+            <span className="camera-loader camera-loader-light" aria-hidden="true" />
+            <strong>Uploading…</strong>
+          </div>
+        )}
+
+        {mode === 'idle' && (
+          <div className="camera-placeholder">
+            <span className="camera-placeholder-icon" aria-hidden="true">
+              <IconCamera size={size === 'small' ? 20 : 26} />
+            </span>
+            <strong>Camera is off</strong>
+            {size !== 'small' && <span>Start the camera to capture the visitor's photo.</span>}
+          </div>
+        )}
+
         {mode === 'duplicate' && (
-          <div className="camera-capture-placeholder camera-capture-placeholder-duplicate" aria-hidden="true">
-            🔁
+          <div className="camera-placeholder camera-placeholder-warning">
+            <span className="camera-placeholder-icon is-warning" aria-hidden="true">
+              <IconRefresh size={size === 'small' ? 20 : 26} />
+            </span>
+            <strong>Duplicate photo</strong>
           </div>
         )}
+
         {mode === 'error' && (
-          <div className="camera-capture-placeholder camera-capture-placeholder-error" aria-hidden="true">
-            ⚠️
+          <div className="camera-placeholder camera-placeholder-error">
+            <span className="camera-placeholder-icon is-error" aria-hidden="true">
+              <IconAlert size={size === 'small' ? 20 : 26} />
+            </span>
+            <strong>Camera unavailable</strong>
           </div>
+        )}
+
+        {mode === 'captured' && !isBusy && (
+          <span className="camera-captured-badge" aria-hidden="true">
+            <IconCheck size={13} />
+            Captured
+          </span>
         )}
       </div>
+
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {showSelector && (
-        <label className="camera-capture-select">
-          <span className="camera-capture-select-label">Camera</span>
+        <label className="camera-select">
+          <span className="camera-select-label">Camera device</span>
           <select
+            className="field-control"
             value={selectedDeviceId}
             onChange={(event) => void switchCamera(event.target.value)}
             aria-label="Select camera"
@@ -291,27 +370,33 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
         </label>
       )}
 
-      {label && <p className="camera-capture-label">{label}</p>}
       {error && (
-        <p className={mode === 'duplicate' ? 'camera-capture-duplicate-message' : 'field-error'} role="alert">
+        <p className={mode === 'duplicate' ? 'camera-message is-warning' : 'camera-message is-error'} role="alert">
+          <IconAlert size={13} />
           {error}
         </p>
       )}
 
-      <div className="camera-capture-actions">
+      <div className="camera-actions">
         {mode === 'idle' && (
-          <Button type="button" size="sm" variant="secondary" onClick={() => void startCamera()}>
+          <Button type="button" size="sm" onClick={() => void startCamera()}>
             Start camera
           </Button>
         )}
         {mode === 'starting' && (
           <Button type="button" size="sm" variant="secondary" isLoading disabled>
-            Starting camera
+            Starting
           </Button>
         )}
         {mode === 'streaming' && (
-          <Button type="button" size="sm" onClick={() => void captureFrame()}>
-            Capture Identity
+          <Button type="button" size="sm" className="camera-shutter" onClick={() => void captureFrame()}>
+            <IconCamera size={15} />
+            Capture photo
+          </Button>
+        )}
+        {mode === 'uploading' && (
+          <Button type="button" size="sm" isLoading disabled>
+            Uploading
           </Button>
         )}
         {(mode === 'error' || mode === 'duplicate') && (
@@ -321,10 +406,13 @@ export function CameraCapture({ value, onCapture, onClear, size = 'large', label
         )}
         {mode === 'captured' && (
           <Button type="button" size="sm" variant="secondary" onClick={retake}>
-            Capture again
+            <IconRefresh size={14} />
+            Retake
           </Button>
         )}
       </div>
+
+      {label && <p className="camera-consent">{label}</p>}
     </div>
   );
 }

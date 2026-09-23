@@ -1,0 +1,55 @@
+.action-bar {
+  position: sticky;
+  /* Sits just above the viewport floor; `app-content` reserves room below the
+     last section so nothing is ever hidden behind it. */
+  bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  z-index: 30;
+}
+
+.action-bar-note {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  min-width: 0;
+}
+
+.action-bar-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .action-bar {
+    position: sticky;
+    bottom: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    border-radius: var(--radius-lg);
+    /* Clear of the home indicator / gesture bar. */
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .action-bar-buttons {
+    margin-left: 0;
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .action-bar-buttons .btn {
+    width: 100%;
+  }
+  .action-bar-note {
+    order: -1;
+    text-align: center;
+  }
+}

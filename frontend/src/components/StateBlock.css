@@ -1,28 +1,169 @@
+/* ===========================================================================
+   Empty / error / success blocks
+   =========================================================================== */
+
 .state-block {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-3);
   text-align: center;
-  padding: 3rem 1.5rem;
+  padding: var(--space-10) var(--space-6);
   color: var(--color-text-muted);
 }
 
 .state-icon {
-  font-size: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-neutral-bg);
+  font-size: 1.5rem;
+}
+
+.state-icon-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.state-icon-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  /* One short confirming beat - it settles and stops. */
+  animation: success-pop 260ms var(--ease) both;
+}
+
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .state-block h3 {
   color: var(--color-text);
-  font-size: 1rem;
+  font-size: var(--text-lg);
 }
 
 .state-block p {
-  max-width: 420px;
-  font-size: 0.88rem;
+  max-width: 46ch;
+  font-size: var(--text-base);
 }
 
 .state-error h3 {
   color: var(--color-danger);
+}
+
+.state-reference {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-base);
+}
+
+.state-reference strong {
+  font-size: var(--text-md);
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.state-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+/* ===========================================================================
+   Inline form banner
+   =========================================================================== */
+
+.form-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--text-base);
+  margin-bottom: var(--space-4);
+  animation: enter-up 180ms var(--ease) both;
+}
+
+.form-banner-error {
+  background: var(--color-danger-bg);
+  border-color: rgba(179, 38, 30, 0.22);
+  color: var(--color-danger);
+}
+
+.form-banner-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.form-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.form-banner-text strong {
+  font-weight: 700;
+}
+
+.form-banner-text span {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.form-banner-action {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.7rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.form-banner-action:hover {
+  background: rgba(179, 38, 30, 0.08);
+}
+
+@media (max-width: 640px) {
+  .state-block {
+    padding: var(--space-8) var(--space-4);
+  }
+  .state-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .state-actions .btn {
+    width: 100%;
+  }
+  .form-banner {
+    flex-wrap: wrap;
+  }
+  .form-banner-action {
+    margin-left: 0;
+  }
 }

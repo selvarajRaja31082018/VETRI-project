@@ -1,50 +1,191 @@
+/* ===========================================================================
+   Form fields
+   ---------------------------------------------------------------------------
+   Label above, control, then one message slot (error OR hint - never both, so
+   the field never changes height twice).
+   =========================================================================== */
+
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  min-width: 0;
 }
 
 .field-label {
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text);
+  letter-spacing: 0.005em;
 }
 
 .field-required {
   color: var(--color-danger);
-  margin-left: 2px;
 }
 
+/* --- Control ------------------------------------------------------------ */
+
 .field-control {
-  padding: 0.6rem 0.75rem;
+  width: 100%;
+  height: 44px;
+  padding: 0 0.85rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
   background: var(--color-surface);
   color: var(--color-text);
-  width: 100%;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.field-control::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.field-control:hover:not(:disabled):not(:focus) {
+  border-color: var(--color-border-strong);
 }
 
 .field-control:focus {
+  outline: none;
   border-color: var(--color-primary);
+  box-shadow: var(--ring-primary);
+}
+
+.field-control:disabled {
+  background: var(--color-surface-muted);
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
 }
 
 .field-control.has-error {
   border-color: var(--color-danger);
 }
 
-textarea.field-control {
-  resize: vertical;
-  min-height: 80px;
+.field-control.has-error:focus {
+  box-shadow: var(--ring-danger);
 }
 
+/* --- Leading icon ------------------------------------------------------- */
+/* Used sparingly - only on fields where the glyph genuinely aids scanning. */
+
+.field-control-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-icon {
+  position: absolute;
+  left: 0.75rem;
+  display: inline-flex;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+  transition: color var(--transition-fast);
+}
+
+.field-control-wrap:focus-within .field-icon {
+  color: var(--color-primary);
+}
+
+.field-control-wrap .field-control {
+  padding-left: 2.35rem;
+}
+
+/* --- Select ------------------------------------------------------------- */
+/* Native <select> keeps the platform's accessible popup; only the closed-state
+   chrome is restyled, with a drawn chevron replacing the OS arrow. */
+
+select.field-control {
+  appearance: none;
+  padding-right: 2.25rem;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
+    linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 1.05rem) 50%, calc(100% - 0.65rem) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+select.field-control:disabled {
+  cursor: not-allowed;
+}
+
+/* --- Textarea ----------------------------------------------------------- */
+
+textarea.field-control {
+  height: auto;
+  min-height: 104px;
+  padding: 0.7rem 0.85rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+/* --- Number ------------------------------------------------------------- */
+/* The stepper arrows are tiny and easy to hit by accident on a touch screen;
+   the field is validated and clamped in code either way. */
+
+input[type='number'].field-control {
+  -moz-appearance: textfield;
+}
+
+input[type='number'].field-control::-webkit-outer-spin-button,
+input[type='number'].field-control::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* --- Messages ----------------------------------------------------------- */
+
 .field-error {
-  font-size: 0.78rem;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
   color: var(--color-danger);
+  font-weight: 500;
+}
+
+.field-error svg {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .field-hint {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+
+/* Right-aligned counter under a textarea. */
+.field-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.field-count {
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.field-count.is-near-limit {
+  color: var(--color-warning);
+}
+
+/* --- Checkbox ----------------------------------------------------------- */
+
+.field-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
 }

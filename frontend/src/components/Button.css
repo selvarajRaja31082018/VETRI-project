@@ -2,36 +2,58 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-weight: 600;
+  letter-spacing: 0.005em;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
   white-space: nowrap;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast),
+    box-shadow var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+/* Pressing gives a 1px nudge rather than a scale - it reads as a real press
+   without the bounce that would be out of place in an operational tool. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-primary);
+}
+
+/* Heights line up with the 44px form controls so a button sitting beside an
+   input never looks short. */
 .btn-md {
-  padding: 0.6rem 1.1rem;
-  font-size: 0.9rem;
+  height: 44px;
+  padding: 0 1.15rem;
+  font-size: var(--text-base);
 }
 
 .btn-sm {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
+  height: 34px;
+  padding: 0 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .btn-primary {
   background: var(--color-primary);
   color: var(--color-on-primary);
+  box-shadow: var(--shadow-xs);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--color-primary-active);
 }
 
 .btn-secondary {
@@ -41,6 +63,7 @@
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
 .btn-danger {
@@ -49,6 +72,9 @@
 }
 .btn-danger:hover:not(:disabled) {
   background: var(--color-danger-hover);
+}
+.btn-danger:focus-visible {
+  box-shadow: var(--ring-danger);
 }
 
 .btn-ghost {
@@ -59,13 +85,18 @@
   background: var(--color-primary-tint);
 }
 
+.btn-block {
+  width: 100%;
+}
+
 .btn-spinner {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   border: 2px solid currentColor;
   border-right-color: transparent;
   animation: btn-spin 0.6s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes btn-spin {

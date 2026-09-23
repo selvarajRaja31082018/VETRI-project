@@ -1,5 +1,6 @@
 import { useId, type SelectHTMLAttributes } from 'react';
 import './FormField.css';
+import { IconAlert } from './icons';
 
 interface SelectOption {
   value: string;
@@ -56,6 +57,7 @@ export function Select({
       </select>
       {error && (
         <span className="field-error" role="alert">
+          <IconAlert size={13} />
           {error}
         </span>
       )}

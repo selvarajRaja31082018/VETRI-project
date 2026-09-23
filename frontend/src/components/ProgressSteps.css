@@ -1,0 +1,101 @@
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  overflow-x: auto;
+  /* The rail scrolls on narrow screens rather than wrapping into a tall block
+     that pushes the form down. */
+  scrollbar-width: none;
+}
+
+.steps::-webkit-scrollbar {
+  display: none;
+}
+
+.steps-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+/* Connector between items. */
+.steps-item:not(:last-child)::after {
+  content: '';
+  width: 18px;
+  height: 1px;
+  background: var(--color-border-strong);
+  margin-left: var(--space-2);
+  flex-shrink: 0;
+}
+
+.steps-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+/* --- Upcoming ----------------------------------------------------------- */
+.steps-item.is-upcoming {
+  color: var(--color-text-subtle);
+}
+.steps-item.is-upcoming .steps-marker {
+  background: var(--color-neutral-bg);
+  color: var(--color-text-subtle);
+}
+
+/* --- Current ------------------------------------------------------------ */
+.steps-item.is-current {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+.steps-item.is-current .steps-marker {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* --- Complete ----------------------------------------------------------- */
+.steps-item.is-complete {
+  color: var(--color-success);
+}
+.steps-item.is-complete .steps-marker {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+@media (max-width: 640px) {
+  .steps {
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+  .steps-item {
+    padding: 0.3rem var(--space-2);
+    font-size: var(--text-xs);
+  }
+  /* Connectors are the first thing to go when space is tight. */
+  .steps-item:not(:last-child)::after {
+    width: 10px;
+    margin-left: var(--space-1);
+  }
+}
