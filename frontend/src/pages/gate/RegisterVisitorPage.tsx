@@ -247,18 +247,29 @@ export function RegisterVisitorPage() {
             />
 
             <div className="identity-aside">
-              <h3 className="identity-aside-title">Other capture options</h3>
-              <p className="identity-aside-text">
-                Use a phone as an extra camera, or pick a USB camera from the device list in the panel.
-              </p>
-              <MobileCameraConnect
-                capture={capture}
-                onUsePhoto={(image) => {
-                  setDuplicateNotice(null);
-                  setPhotoUrl(image.url);
-                }}
-                duplicateMessage={duplicateNotice}
-              />
+              <div>
+                <h3 className="identity-aside-title">Other capture options</h3>
+                <p className="identity-aside-text">
+                  Use a phone as an extra camera, or pick a USB camera from the device list in the panel.
+                </p>
+                <MobileCameraConnect
+                  capture={capture}
+                  onUsePhoto={(image) => {
+                    setDuplicateNotice(null);
+                    setPhotoUrl(image.url);
+                  }}
+                  duplicateMessage={duplicateNotice}
+                />
+              </div>
+
+              <div className="identity-tips">
+                <h4>For a usable photo</h4>
+                <ul>
+                  <li>Face the visitor towards the light, not a window behind them.</li>
+                  <li>Frame head and shoulders inside the guide oval.</li>
+                  <li>Ask the visitor to remove a helmet or face covering.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </Card>

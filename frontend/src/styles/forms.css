@@ -1,9 +1,23 @@
-/* Two columns on desktop, one on a phone. `auto-fit` collapses on its own at
-   the point the columns would get too narrow to read. */
+/*
+ * Two columns, explicitly. `auto-fit` was packing four columns onto a wide
+ * screen, which made the form read as a dense spreadsheet row rather than a
+ * pair of readable columns.
+ */
 .form-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 var(--space-5);
+}
+
+/* A field that should take the full row inside a 2-column grid. */
+.form-grid-2 > .field-span-2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .form-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .section-spacing {

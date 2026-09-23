@@ -12,12 +12,16 @@
 }
 
 /* --- Identity section --------------------------------------------------- */
-/* Camera on the left, alternative capture routes on the right. They stack on
-   narrow screens so the camera always gets the full width it needs. */
-
+/*
+ * Camera on the left, alternative capture routes on the right, both sized and
+ * left-aligned; they stack on narrow screens so the camera always gets the
+ * width it needs. Letting the aside stretch to the full card width left a
+ * large empty area beside a short panel.
+ */
 .identity-layout {
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 420px) minmax(260px, 430px);
+  justify-content: start;
   gap: var(--space-6);
   align-items: start;
 }
@@ -25,16 +29,47 @@
 .identity-aside {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-5);
+  /* Matches the camera panel's height so the card has no empty right half. */
+  align-self: stretch;
   padding: var(--space-4);
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface-muted);
 }
 
+.identity-tips {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.identity-tips h4 {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.identity-tips ul {
+  margin: 0;
+  padding-left: 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.identity-tips li {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
 .identity-aside-title {
   font-size: var(--text-sm);
   font-weight: 700;
+  margin-bottom: var(--space-2);
 }
 
 .identity-aside-text {
