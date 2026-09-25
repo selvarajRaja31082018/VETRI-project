@@ -9,6 +9,7 @@ const BASE_SELECT = `
          vr.approved_at, vr.resolved_at, vr.checked_in_at, vr.checked_out_at,
          vr.created_at, vr.updated_at,
          v.visitor_code, v.name AS visitor_name, v.mobile AS visitor_mobile,
+         v.email AS visitor_email, v.address AS visitor_address,
          v.district, v.constituency, v.visitor_type, v.photo_url, v.is_restricted,
          d.name AS department_name,
          ru.name AS representative_name,

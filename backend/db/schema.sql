@@ -87,6 +87,8 @@ CREATE TABLE IF NOT EXISTS visitors (
   visitor_code VARCHAR(50) NOT NULL,
   name VARCHAR(150) NOT NULL,
   mobile VARCHAR(20) NOT NULL,
+  -- Optional. Captured only so a visitor pass can be emailed to them.
+  email VARCHAR(255) DEFAULT NULL,
   address TEXT,
   district VARCHAR(100) DEFAULT NULL,
   constituency VARCHAR(150) DEFAULT NULL,

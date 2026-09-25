@@ -12,6 +12,8 @@ export interface RegisterVisitorPayload {
   visitorId?: number;
   name: string;
   mobile: string;
+  /** Optional - captured only so the visitor pass can be emailed. */
+  email?: string;
   address?: string;
   district?: string;
   constituency?: string;

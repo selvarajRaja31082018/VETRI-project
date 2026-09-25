@@ -18,6 +18,7 @@ const register = {
       visitorId: z.coerce.number().int().positive().optional(),
       name: z.string().trim().min(1, 'Visitor name is required').max(150),
       mobile,
+      email: z.string().trim().email('Enter a valid email address').max(255).optional().or(z.literal('')),
       address: z.string().trim().max(1000).optional(),
       district: z.string().trim().max(100).optional(),
       constituency: z.string().trim().max(150).optional(),

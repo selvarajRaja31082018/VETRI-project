@@ -33,6 +33,21 @@ const env = {
    * getUserMedia on a secure context. Falls back to FRONTEND_URL.
    */
   publicAppUrl: process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173',
+  /**
+   * Outbound mail, used to send a visitor pass. Entirely optional: when
+   * SMTP_HOST is unset the feature reports itself as unavailable rather than
+   * failing at send time. Credentials only ever come from the environment.
+   */
+  smtp: {
+    host: process.env.SMTP_HOST || null,
+    port: Number(process.env.SMTP_PORT || 587),
+    user: process.env.SMTP_USER || null,
+    password: process.env.SMTP_PASSWORD || null,
+    // Implicit TLS on 465, STARTTLS elsewhere.
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : Number(process.env.SMTP_PORT) === 465,
+    from: process.env.MAIL_FROM || 'VETRI <no-reply@vetri.local>',
+  },
+
   /** Origins allowed to call the API. Mobile devices hit it from PUBLIC_APP_URL. */
   get corsOrigins() {
     return [...new Set([this.frontendUrl, this.publicAppUrl].filter(Boolean))];

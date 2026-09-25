@@ -85,6 +85,15 @@ async function alignEnums(connection, database, table, applied) {
 async function applyAlterations(connection, database) {
   const applied = [];
 
+  // Optional visitor email, used to send the visitor pass.
+  if (
+    (await tableExists(connection, database, 'visitors')) &&
+    !(await columnExists(connection, database, 'visitors', 'email'))
+  ) {
+    await connection.query('ALTER TABLE visitors ADD COLUMN email VARCHAR(255) DEFAULT NULL AFTER mobile');
+    applied.push('visitors.email added');
+  }
+
   if (!(await tableExists(connection, database, 'captured_images'))) return applied;
 
   // Signature used for near-identical duplicate detection.

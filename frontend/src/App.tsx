@@ -9,6 +9,7 @@ import { ROLE_HOME } from './utils/constants';
 
 import { LoginPage } from './pages/auth/LoginPage';
 import { MobileCapturePage } from './pages/capture/MobileCapturePage';
+import { VerifyPassPage } from './pages/verify/VerifyPassPage';
 
 import { GateOverviewPage } from './pages/gate/GateOverviewPage';
 import { RegisterVisitorPage } from './pages/gate/RegisterVisitorPage';
@@ -74,6 +75,10 @@ export default function App() {
               <Route path="/" element={<HomeRedirect />} />
 
               <Route element={<DashboardLayout />}>
+                {/* Landing page for a scanned visitor-pass QR code. Staff-only:
+                    the QR carries an id, the details come from the session. */}
+                <Route path="/verify/:id" element={<VerifyPassPage />} />
+
                 <Route element={<RoleRoute allow={['G']} />}>
                   <Route path="/gate/overview" element={<GateOverviewPage />} />
                   <Route path="/gate/visitors/new" element={<RegisterVisitorPage />} />

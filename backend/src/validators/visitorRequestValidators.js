@@ -74,7 +74,15 @@ const referToDepartment = {
 
 const idOnly = { params: idParam };
 
+const emailPass = {
+  params: idParam,
+  body: z.object({
+    email: z.string().trim().email('Enter a valid email address').max(255),
+  }),
+};
+
 module.exports = {
+  emailPass,
   list,
   getOne,
   approve,

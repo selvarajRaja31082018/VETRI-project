@@ -55,13 +55,14 @@ async function create(executor, visitor) {
   const runner = executor || db;
   const code = visitor.visitorCode || (await nextVisitorCode(executor));
   const result = await runner.query(
-    `INSERT INTO visitors (visitor_code, name, mobile, address, district, constituency,
+    `INSERT INTO visitors (visitor_code, name, mobile, email, address, district, constituency,
                            visitor_type, identity_type, identity_reference, photo_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       code,
       visitor.name,
       visitor.mobile,
+      visitor.email || null,
       visitor.address || null,
       visitor.district || null,
       visitor.constituency || null,

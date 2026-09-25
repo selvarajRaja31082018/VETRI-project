@@ -372,3 +372,60 @@ export interface DuplicateEventPayload {
   originalUrl: string;
   message: string;
 }
+
+/* --------------------------------------------------------------------------
+ * Visitor pass
+ * ------------------------------------------------------------------------ */
+
+/** Everything printed on, or emailed with, a visitor pass. */
+export interface VisitorPass {
+  requestId: number;
+  visitorId: number;
+  visitorCode: string;
+  tokenNumber: string;
+  fullName: string;
+  mobileNumber: string;
+  email: string | null;
+  photoUrl: string | null;
+  address: string | null;
+  district: string | null;
+  constituency: string | null;
+  visitorType: string | null;
+  reason: string | null;
+  personToMeet: string | null;
+  purpose: string;
+  priority: Priority;
+  numberOfPersons: number;
+  representativeName: string | null;
+  departmentName: string | null;
+  registeredAt: string;
+  status: RequestStatus;
+  queueStatus: string;
+  /** URL encoded into the QR code - an id only, no personal detail. */
+  verifyUrl: string;
+  officeName: string;
+  officeSubtitle: string;
+}
+
+export interface VisitorPassResponse {
+  pass: VisitorPass;
+  /** False when the server has no SMTP configured; the UI disables emailing. */
+  emailAvailable: boolean;
+}
+
+/** Narrow payload behind a scanned pass - enough to confirm identity, no more. */
+export interface VisitorVerification {
+  requestId: number;
+  tokenNumber: string;
+  visitorCode: string;
+  fullName: string;
+  photoUrl: string | null;
+  visitorType: string | null;
+  district: string | null;
+  personToMeet: string | null;
+  numberOfPersons: number;
+  registeredAt: string;
+  status: RequestStatus;
+  queueStatus: string;
+  isRestricted: boolean;
+}
